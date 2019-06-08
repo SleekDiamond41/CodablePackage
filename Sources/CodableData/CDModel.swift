@@ -16,7 +16,7 @@ public protocol CDModel {
 	
 	/// The name of the table to which this object should be saved.
 	///
-	/// - Note: CodableData surrounds the given name in double quotes ("\"") so capitalization, spaces and some punctuation marks (-.+!?) are valid characters. See https://stackoverflow.com/a/3694305/9626155 for more information.
+	/// - Note: CodableData surrounds the given name in double quotes ("\"") so capitalization, spaces and some punctuation marks (-.+!?) are valid characters and respected by SQLite. See https://stackoverflow.com/a/3694305/9626155 for more information.
 	///
 	/// Remember namespacing when implementing a custom tableName. String(reflecting: MyModel.self), String(describing: MyModel.self) and "\(MyModel.self)" all return the String name of the object, but the latter two return unique the name of the type within its own scope, ignoring namespacing. For example:
 	///
