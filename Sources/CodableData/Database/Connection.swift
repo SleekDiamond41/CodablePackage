@@ -64,7 +64,7 @@ class Connection {
 		self.init(db, queue: queue)
 	}
 	
-	convenience init(_ configuration: CDDatabase.Configuration, queue: DispatchQueue) {
+	convenience init(_ configuration: Database.Configuration, queue: DispatchQueue) {
 		self.init(dir: configuration.directory, name: configuration.filename, queue: queue)
 	}
 	

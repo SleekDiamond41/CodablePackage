@@ -9,7 +9,7 @@
 import Foundation
 
 enum KVStorage {
-	struct Key: CDUUIDModel, Codable, CDFilterable {
+	struct Key: UUIDModel, Codable, Filterable {
 		let id: UUID
 		let key: String
 		
@@ -18,7 +18,7 @@ enum KVStorage {
 			case key
 		}
 		
-		static func key<T>(for path: KeyPath<KVStorage.Key, T>) -> CodingKeys where T : CDBindable {
+		static func key<T>(for path: KeyPath<KVStorage.Key, T>) -> CodingKeys where T : Bindable {
 			switch path {
 			case \Key.id:
 				return .id
@@ -30,7 +30,7 @@ enum KVStorage {
 		}
 	}
 	
-	struct Value: CDUUIDModel, Codable, CDFilterable {
+	struct Value: UUIDModel, Codable, Filterable {
 		let id: UUID
 		let value: String
 		
@@ -39,7 +39,7 @@ enum KVStorage {
 			case value
 		}
 		
-		static func key<T>(for path: KeyPath<KVStorage.Value, T>) -> CodingKeys where T : CDBindable {
+		static func key<T>(for path: KeyPath<KVStorage.Value, T>) -> CodingKeys where T : Bindable {
 			switch path {
 			case \Value.id:
 				return .id
@@ -52,10 +52,10 @@ enum KVStorage {
 	}
 }
 
-extension CDDatabase {
+extension Database {
 	
 	static func store<T>(db: OpaquePointer, _ k: String, _ v: T) where T: Codable {
-		let filter = CDFilter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
+		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
 		
 		let key: KVStorage.Key
 		
@@ -78,19 +78,19 @@ extension CDDatabase {
 	
 	public func store<T>(key: String, value: T) where T: Codable {
 		sync {
-			CDDatabase.store(db: $0, key, value)
+			Database.store(db: $0, key, value)
 		}
 	}
 	
 	public func store<T>(key: String, value: T, _ handler: @escaping () -> Void) where T: Codable {
 		async {
-			CDDatabase.store(db: $0, key, value)
+			Database.store(db: $0, key, value)
 			handler()
 		}
 	}
 	
 	static func value<T>(db: OpaquePointer, k: String) -> T? where T: Decodable {
-		let filter = CDFilter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
+		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
 		
 		guard let key = get(db, filter: filter).first else {
 			return nil
@@ -111,14 +111,13 @@ extension CDDatabase {
 	
 	public func value<T>(for key: String) -> T? where T: Decodable {
 		return sync {
-			return CDDatabase.value(db: $0, k: key)
+			return Database.value(db: $0, k: key)
 		}
 	}
 	
 	public func value<T>(for key: String, _ handler: @escaping (T?) -> Void) where T: Decodable {
 		async {
-			handler(CDDatabase.value(db: $0, k: key))
+			handler(Database.value(db: $0, k: key))
 		}
 	}
-	
 }

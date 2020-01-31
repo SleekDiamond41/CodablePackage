@@ -9,7 +9,7 @@
 import Foundation
 
 extension Table.Column {
-	init(name: String, type: CDValue) {
+	init(name: String, type: SQLValue) {
 		let t: ColumnType
 		switch type {
 		case .text:
@@ -27,7 +27,7 @@ extension Table.Column {
 	}
 }
 
-class Writer<T: CDModel & Encodable> {
+class Writer<T: Model & Encodable> {
 	
 	private let writer = _Writer()
 	
@@ -73,7 +73,7 @@ class Writer<T: CDModel & Encodable> {
 }
 
 fileprivate protocol _WriterContainer {
-	var values: [(String, CDBindable)] { get }
+	var values: [(String, Bindable)] { get }
 }
 
 fileprivate class _Writer: Encoder {
@@ -85,7 +85,7 @@ fileprivate class _Writer: Encoder {
 		return [:]
 	}
 	
-	var values = [(String, CDBindable)]()
+	var values = [(String, Bindable)]()
 	var currentKey: String?
 	
 	
@@ -153,7 +153,7 @@ fileprivate class _Writer: Encoder {
 		func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
 //			let i = index(for: key)
 			
-			if let bindable = value as? CDBindable {
+			if let bindable = value as? Bindable {
 				encoder.values.append((key.stringValue, bindable))
 			} else {
 				// value is likely an enum, encode its RawValue
@@ -203,7 +203,7 @@ fileprivate class _Writer: Encoder {
 				preconditionFailure("Expected to have a key to encode value '\(value)'")
 			}
 			
-			if let bind = value as? CDBindable {
+			if let bind = value as? Bindable {
 				encoder.values.append((key, bind))
 			} else {
 				let e = JSONEncoder()

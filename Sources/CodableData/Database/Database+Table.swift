@@ -10,7 +10,7 @@ import Foundation
 
 
 //MARK: - Get Existing
-extension CDDatabase {
+extension Database {
 	
 	static func table(_ db: OpaquePointer, named name: String) -> Table? {
 		var s = Statement("PRAGMA TABLE_INFO(\(Table.name(name)))")
@@ -49,13 +49,13 @@ extension CDDatabase {
 	
 	func table(_ name: String) -> Table? {
 		return sync {
-			return CDDatabase.table($0, named: name)
+			return Database.table($0, named: name)
 		}
 	}
 	
 	func table(_ name: String, _ handler: @escaping (Table?) -> Void) {
 		async {
-			handler(CDDatabase.table($0, named: name))
+			handler(Database.table($0, named: name))
 		}
 	}
 	
@@ -63,21 +63,21 @@ extension CDDatabase {
 
 
 //MARK: - Create
-extension CDDatabase {
+extension Database {
 	
 	static func create(db: OpaquePointer, _ table: Table) {
-		CDDatabase._execute(db: db, table.query(for: .create))
+		Database._execute(db: db, table.query(for: .create))
 	}
 	
 	func create(_ table: Table) {
 		sync { (db) in
-			CDDatabase.create(db: db, table)
+			Database.create(db: db, table)
 		}
 	}
 	
 	func create(_ table: Table, _ handler: @escaping () -> Void) {
 		async { (db) in
-			CDDatabase.create(db: db, table)
+			Database.create(db: db, table)
 			handler()
 		}
 	}
@@ -86,22 +86,22 @@ extension CDDatabase {
 
 
 //MARK: - Drop
-extension CDDatabase {
+extension Database {
 	
 	static func dropTable(named name: String, db: OpaquePointer) {
 		let t = Table(name: name, columns: [])
 		_execute(db: db, t.query(for: .drop))
 	}
 	
-	public func dropTable<T>(for _: T.Type) where T: CDModel {
+	public func dropTable<T>(for _: T.Type) where T: Model {
 		sync { (db) in
-			CDDatabase.dropTable(named: T.tableName, db: db)
+			Database.dropTable(named: T.tableName, db: db)
 		}
 	}
 	
-	public func dropTable<T>(for _: T.Type, _ handler: @escaping () -> Void) where T: CDModel {
+	public func dropTable<T>(for _: T.Type, _ handler: @escaping () -> Void) where T: Model {
 		async { (db) in
-			CDDatabase.dropTable(named: T.tableName, db: db)
+			Database.dropTable(named: T.tableName, db: db)
 			handler()
 		}
 	}

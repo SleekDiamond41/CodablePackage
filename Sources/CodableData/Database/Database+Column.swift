@@ -9,23 +9,23 @@
 import Foundation
 
 
-extension CDDatabase {
+extension Database {
 	
 	static func add(_ db: OpaquePointer, column: Table.Column, to table: Table) -> Table {
 		let query = table.query(for: .addColumn(column))
-		CDDatabase._execute(db: db, query)
-		return CDDatabase.table(db, named: table.name.replacingOccurrences(of: "\"", with: ""))!
+		Database._execute(db: db, query)
+		return Database.table(db, named: table.name.replacingOccurrences(of: "\"", with: ""))!
 	}
 	
 }
 
 
 //MARK: - Sync
-extension CDDatabase {
+extension Database {
 	
 	func add(column: Table.Column, to table: inout Table) {
 		sync { (db) in
-			table = CDDatabase.add(db, column: column, to: table)
+			table = Database.add(db, column: column, to: table)
 		}
 	}
 	
@@ -33,11 +33,11 @@ extension CDDatabase {
 
 
 //MARK: - Async
-extension CDDatabase {
+extension Database {
 	
 	func add(column: Table.Column, to table: Table, _ handler: @escaping (Table) -> Void) {
 		async { (db) in
-			handler(CDDatabase.add(db, column: column, to: table))
+			handler(Database.add(db, column: column, to: table))
 		}
 	}
 	

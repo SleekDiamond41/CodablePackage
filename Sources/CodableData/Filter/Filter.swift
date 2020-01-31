@@ -9,13 +9,13 @@
 import Foundation
 
 protocol Rule {
-	associatedtype T: CDBindable
+	associatedtype T: Bindable
 	
 	var query: (String, [T]) { get }
 }
 
 
-public struct CDFilter<Element> where Element: CDFilterable {
+public struct Filter<Element> where Element: Filterable {
 	
 	var query: String {
 		var result = ""
@@ -31,12 +31,12 @@ public struct CDFilter<Element> where Element: CDFilterable {
 		return result
 	}
 	
-	private(set) var bindings: [CDBindable]
+	private(set) var bindings: [Bindable]
 	private var _query: String
-	private var limit: CDLimit?
-	private var sort: CDSortRule<Element>?
+	private var limit: Limit?
+	private var sort: SortRule<Element>?
 	
-	static func query(_ q: String, sort: CDSortRule<Element>?, limit: CDLimit?) -> String {
+	static func query(_ q: String, sort: SortRule<Element>?, limit: Limit?) -> String {
 		var result = ""
 		if q.count > 0 {
 			result += "WHERE " + q
@@ -51,27 +51,27 @@ public struct CDFilter<Element> where Element: CDFilterable {
 	}
 	
 	
-	init(query: String, bindings: [CDBindable], limit: CDLimit?, sort: CDSortRule<Element>?) {
+	init(query: String, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
 		self._query = query
 		self.bindings = bindings
 		self.limit = limit
 		self.sort = sort
 	}
 	
-	init(_ sort: CDSortRule<Element>) {
+	init(_ sort: SortRule<Element>) {
 		self._query = ""
 		self.bindings = []
 		self.limit = nil
 		self.sort = sort
 	}
 	
-	public func and(_ filter: CDFilter) -> CDFilter {
+	public func and(_ filter: Filter) -> Filter {
 		var copy = self
 		copy._query = "(" + _query + ") AND (" + filter._query + ")"
 		return copy
 	}
 	
-	public func or(_ filter: CDFilter) -> CDFilter {
+	public func or(_ filter: Filter) -> Filter {
 		var copy = self
 		copy._query = "(" + _query + ") OR (" + filter._query + ")"
 		return copy
@@ -86,7 +86,7 @@ public struct CDFilter<Element> where Element: CDFilterable {
 		self.sort = nil
 	}
 	
-	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> CDFilter where U: Rule, U.T == T {
+	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
 		let (str, vals) = rule.query
 		
 		var copy = self
@@ -95,7 +95,7 @@ public struct CDFilter<Element> where Element: CDFilterable {
 		return copy
 	}
 	
-	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> CDFilter where U: Rule, U.T == T {
+	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
 		let (str, vals) = rule.query
 		
 		var copy = self
@@ -104,36 +104,29 @@ public struct CDFilter<Element> where Element: CDFilterable {
 		return copy
 	}
 	
-	public func sort<T>(by path: KeyPath<Element, T>, ascending: Bool = false) -> CDFilter where T: CDBindable & Comparable {
-		let s: CDSortRule<Element>
+	public func sort<T>(by path: KeyPath<Element, T>, ascending: Bool = false) -> Filter where T: Bindable & Comparable {
+		let s: SortRule<Element>
 		if let sort = sort {
 			s = sort
 		} else {
-			s = CDSortRule(path, ascending: ascending)
+			s = SortRule(path, ascending: ascending)
 		}
 		var copy = self
 		copy.sort = s
 		return copy
 	}
 	
-	public func sort(by sort: CDSortRule<Element>) -> CDFilter {
+	public func sort(by sort: SortRule<Element>) -> Filter {
 		var copy = self
 		copy.sort = sort
 		return copy
 	}
 	
-	public func limit(_ limit: Int, _ page: Int = 1) -> CDFilter {
+	public func limit(_ limit: Int, _ page: Int = 1) -> Filter {
 		var copy = self
-		copy.limit = CDLimit(limit, page)
+		copy.limit = Limit(limit, page)
 		return copy
 	}
-	
-	public func limit(_ limit: CDLimit) -> CDFilter {
-		var copy = self
-		copy.limit = limit
-		return copy
-	}
-	
 }
 
 
@@ -148,7 +141,7 @@ func test() {
 //	
 //	let b = Filter(\Person.nickName, is: .equal(to: nil))
 //	
-////	let c = Filter<Person>(\.id, .equal, to: ids.0)
+//	let c = Filter<Person>(\.id, .equal, to: ids.0)
 //	
 //	
 //	

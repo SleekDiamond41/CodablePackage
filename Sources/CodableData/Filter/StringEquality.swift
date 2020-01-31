@@ -9,7 +9,7 @@
 import Foundation
 
 
-public enum CDStringEquality: Rule {
+public enum StringEquality: Rule {
 	case like(String)
 	case glob(String)
 	case regex(String)
@@ -30,17 +30,17 @@ public enum CDStringEquality: Rule {
 }
 
 
-extension CDFilter {
+extension Filter {
 	
-	public init(_ path: KeyPath<Element, String>, _ rule: CDStringEquality) {
+	public init(_ path: KeyPath<Element, String>, _ rule: StringEquality) {
 		self.init(path: path, rule: rule)
 	}
 	
-	public func and(_ path: KeyPath<Element, String>, _ rule: CDStringEquality) -> CDFilter {
+	public func and(_ path: KeyPath<Element, String>, _ rule: StringEquality) -> Filter {
 		return and(path: path, rule: rule)
 	}
 	
-	public func or(_ path: KeyPath<Element, String>, _ rule: CDStringEquality) -> CDFilter {
+	public func or(_ path: KeyPath<Element, String>, _ rule: StringEquality) -> Filter {
 		return or(path: path, rule: rule)
 	}
 	

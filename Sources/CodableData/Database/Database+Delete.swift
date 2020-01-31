@@ -9,8 +9,8 @@
 import Foundation
 
 
-extension CDDatabase {
-	private static func delete<T>(db: OpaquePointer, _ value: T) where T: CDModel & Encodable {
+extension Database {
+	private static func delete<T>(db: OpaquePointer, _ value: T) where T: Model & Encodable {
 		var s = Statement("DELETE FROM \(Table.name(T.tableName)) WHERE id = ?")
 		
 		do {
@@ -27,18 +27,18 @@ extension CDDatabase {
 	}
 }
 
-extension CDDatabase {
-	public func delete<T>(_ value: T) where T: CDModel & Encodable {
+extension Database {
+	public func delete<T>(_ value: T) where T: Model & Encodable {
 		sync { (db) in
-			CDDatabase.delete(db: db, value)
+			Database.delete(db: db, value)
 		}
 	}
 }
 
-extension CDDatabase {
-	public func delete<T>(_ value: T, _ handler: @escaping () -> Void) where T: CDModel & Encodable {
+extension Database {
+	public func delete<T>(_ value: T, _ handler: @escaping () -> Void) where T: Model & Encodable {
 		async { (db) in
-			CDDatabase.delete(db: db, value)
+			Database.delete(db: db, value)
 			handler()
 		}
 	}

@@ -9,15 +9,15 @@
 import Foundation
 
 
-public protocol CDFilterable {
+public protocol Filterable {
 	associatedtype FilterKey: CodingKey
 	
-	static func key<T: CDBindable>(for path: KeyPath<Self, T>) -> FilterKey
+	static func key<T: Bindable>(for path: KeyPath<Self, T>) -> FilterKey
 }
 
 extension Person {
 	
-	static func key<T: CDBindable>(for path: KeyPath<Person, T>) -> Person.CodingKeys {
+	static func key<T: Bindable>(for path: KeyPath<Person, T>) -> Person.CodingKeys {
 		switch path {
 		case \Person.id: return .id
 		case \Person.name: return .name

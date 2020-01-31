@@ -9,15 +9,16 @@
 import Foundation
 
 
-public struct CDLimit {
+struct Limit {
 	var query: String {
-		return "LIMIT \(limit) OFFSET \(limit * (page-1))"
+        // pages start at 1
+		return "LIMIT \(limit) OFFSET \(limit * (max(1, page-1)))"
 	}
 	
-	public let limit: Int
-	public let page: Int
+	let limit: Int
+	let page: Int
 	
-	public init(_ limit: Int, _ page: Int = 1) {
+	init(_ limit: Int, _ page: Int = 1) {
 		self.limit = limit
 		self.page = page
 	}
