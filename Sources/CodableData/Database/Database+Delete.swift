@@ -10,36 +10,15 @@ import Foundation
 
 
 extension Database {
-	private static func delete<T>(db: OpaquePointer, _ value: T) where T: Model & Encodable {
-		var s = Statement("DELETE FROM \(Table.name(T.tableName)) WHERE id = ?")
-		
-		do {
-			try s.prepare(in: db)
-			defer {
-				s.finalize()
-			}
-			try value.id.bindingValue.bind(into: s, at: 1)
-			try s.step()
-			
-		} catch {
-			fatalError(String(reflecting: error))
-		}
-	}
-}
+	public func delete<T>(_ value: T) throws where T: Model & Encodable {
+        var s = Statement("DELETE FROM \(Table.name(T.tableName)) WHERE id = ?")
 
-extension Database {
-	public func delete<T>(_ value: T) where T: Model & Encodable {
-		sync { (db) in
-			Database.delete(db: db, value)
-		}
-	}
-}
+        try s.prepare(in: connection.db)
+        defer {
+            s.finalize()
+        }
 
-extension Database {
-	public func delete<T>(_ value: T, _ handler: @escaping () -> Void) where T: Model & Encodable {
-		async { (db) in
-			Database.delete(db: db, value)
-			handler()
-		}
+        try value.id.bindingValue.bind(into: s, at: 1)
+        s.step()
 	}
 }

@@ -12,88 +12,38 @@ import SQLite3
 
 extension Database {
 	
-	static func count<Element>(_ db: OpaquePointer, _ : Element.Type, query: String, bindings: [Bindable]) -> Int where Element: Model {
-		guard let table = Database.table(_ : db, named: Element.tableName) else {
-			return 0
-		}
-		
-		assert(!query.hasSuffix(";"))
-		var q = ""
-		if query.count > 0 {
-			q += " " + query
-		}
-		
-		var s = Statement("SELECT COUNT(*) FROM \(table.name)" + q + ";")
-		do {
-			try s.prepare(in: db)
-			defer {
-				s.finalize()
-			}
-			
-			var i: Int32 = 1
-			for b in bindings {
-				try b.bindingValue.bind(into: s, at: i)
-				i += 1
-			}
-			
-			let status = try s.step()
-			
-			guard status == .row else {
-				print(String(reflecting: status))
-				return 0
-			}
-			
-			// returned table should have exactly one row, one column, value is count of items that matched the query
-			return try Int.unbind(from: s, at: 0)
-			
-		} catch {
-			print(String(reflecting: error))
-			return 0
-		}
-	}
-	
-	fileprivate static func count<Element>(_ db: OpaquePointer, _: Element.Type) -> Int where Element: Model & Decodable {
-		return count(db, Element.self, query: "", bindings: [])
-	}
-	
-	fileprivate static func count<Element>(_ db: OpaquePointer, filter: Filter<Element>) -> Int where Element: Model & Decodable {
-		return count(db, Element.self, query: filter.query, bindings: filter.bindings)
-	}
-	
-}
+	public func count<T>(with filter: Filter<T>) throws -> Int where T: Decodable & Model {
+        guard let table = try table(T.tableName) else {
+            return 0
+        }
 
+        assert(!filter.query.hasSuffix(";"))
+        var q = ""
+        if filter.query.count > 0 {
+            q += " " + filter.query
+        }
 
-//MARK: - Sync
-extension Database {
-	
-	public func count<T>(_ : T.Type) -> Int where T: Decodable & Model {
-		return sync { db in
-			return Database.count(db, T.self)
-		}
-	}
-	
-	public func count<T>(with filter: Filter<T>) -> Int where T: Decodable & Model {
-		return sync { db in
-			return Database.count(db, filter: filter)
-		}
-	}
-	
-}
+        var s = Statement("SELECT COUNT(*) FROM \(table.name)" + q + ";")
 
+        try s.prepare(in: connection.db)
+        defer {
+            s.finalize()
+        }
 
-//MARK: - Async
-extension Database {
-	
-	public func count<T>(_ : T.Type, _ handler: @escaping (Int) -> Void) where T: Decodable & Model {
-		async { db in
-			handler(Database.count(db, T.self))
-		}
+        var i: Int32 = 1
+        for b in filter.bindings {
+            try b.bindingValue.bind(into: s, at: i)
+            i += 1
+        }
+
+        let status = s.step()
+
+        guard status == .row else {
+            print(String(reflecting: status))
+            return 0
+        }
+
+        // returned table should have exactly one row, one column, value is count of items that matched the query
+        return try Int.unbind(from: s, at: 0)
 	}
-	
-	public func count<T>(where filter: Filter<T>, _ handler: @escaping (Int) -> Void) where T: Decodable & Model {
-		async { db in
-			handler(Database.count(db, filter: filter))
-		}
-	}
-	
 }

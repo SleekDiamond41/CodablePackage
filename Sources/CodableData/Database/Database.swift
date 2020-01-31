@@ -8,58 +8,52 @@
 
 import Foundation
 
+enum DatabaseError: Error {
+    case internalInconsistency
+}
 
+/// A type-safe wrapper around the SQLite3 database framework.
+///
+/// - Note: A `Database` is not thread-safe, and its methods should only be called from a single thread. It is advised that consumers of this framework create a wrapper around a `Database` instance rather than consuming it directly. The wrapper should guarantee that the `Database` methods are accessed on a single thread. Note that this does not mean one thread at a time, it means one thread ever, as long as the `Database` instance exists. Failure to do so could cause unexpected behavior.
 public class Database {
-	
-	public let configuration: Configuration
-	
-	let conns: (Connection, Connection)
-	
-	public init(_ configuration: Configuration = .default) {
-		
-		let a = Connection(configuration, queue: DispatchQueue(label: "com.CodableData.\(configuration.filename).Connection.Sync", qos: configuration.syncPriority))
-		let b = Connection(configuration, queue: DispatchQueue(label: "com.CodableData.\(configuration.filename).Connection.Async", qos: configuration.asyncPriority))
-		self.conns = (a, b)
-		
-		self.configuration = configuration
+
+	let configuration: Configuration
+
+	let connection: Connection
+
+
+    /// /// Opens a connection to  a new database at the given directory, with the given filename.
+    ///
+    /// If a database does not exist at the given location a new database will be created.
+    ///
+    /// - Parameters:
+    ///   - dir: the full URL to a directory. Default is /ApplicationSupport/CodableData/
+    ///   - filename: the name of the database file. Default is "Data"
+    /// - Throws: Potentially any ConnectionError
+    public init(
+        dir: URL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask).first!.appendingPathComponent("CodableData"),
+        filename: String = "Data") throws {
+
+        let config = Configuration(directory: dir, filename: filename)
+
+        self.configuration = config
+        self.connection = try Connection(config)
 	}
-	
-	func sync<T>(_ block: (OpaquePointer) -> T) -> T {
-		return conns.0.sync { (db) in
-			return block(db)
-		}
-	}
-	
-	func async(_ block: @escaping (OpaquePointer) -> Void) {
-		conns.1.async { (db) in
-			block(db)
-		}
-	}
-	
-	static func _execute(db: OpaquePointer, _ query: String) {
+
+    @discardableResult
+	func execute(_ query: String) -> Status {
+
 		do {
-			var s = Statement(query)
-			try s.prepare(in: db)
-			defer {
-				s.finalize()
-			}
-			try s.step()
-		} catch {
-			fatalError(String(reflecting: error))
-		}
+            var s = Statement(query)
+            try s.prepare(in: connection.db)
+            defer {
+                s.finalize()
+            }
+            return s.step()
+        } catch {
+            fatalError(String(reflecting: error))
+        }
 	}
-	
-	func execute(_ query: String) {
-		sync { db in
-			Database._execute(db: db, query)
-		}
-	}
-	
-	func execute(_ query: String, _ handler: @escaping () -> Void) {
-		async { db in
-			Database._execute(db: db, query)
-			handler()
-		}
-	}
-	
 }

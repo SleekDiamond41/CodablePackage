@@ -11,8 +11,8 @@ import Foundation
 
 extension Database {
 	
-	static func get<Element>(_ db: OpaquePointer, _ : Element.Type, query: String, bindings: [Bindable]) -> [Element] where Element: Decodable & Model {
-		guard let table = Database.table(_ : db, named: Element.tableName) else {
+	func get<Element>(_ : Element.Type, query: String, bindings: [Bindable]) throws -> [Element] where Element: Decodable & Model {
+        guard let table = try self.table(Element.tableName) else {
 			return []
 		}
 		
@@ -25,7 +25,7 @@ extension Database {
 		
 		var s = Statement("SELECT * FROM \(table.name)" + q + ";")
 		do {
-			try s.prepare(in: db)
+            try s.prepare(in: connection.db)
 			defer {
 				s.finalize()
 			}
@@ -37,13 +37,13 @@ extension Database {
 			}
 			
 			var results = [Element]()
-			var status = try s.step()
+			var status = s.step()
 			
 			let reader = Reader()
 			
 			while status == .row {
 				results.append(try reader.read(Element.self, s: s, table))
-				status = try s.step()
+				status = s.step()
 			}
 			return results
 			
@@ -54,97 +54,24 @@ extension Database {
 	}
 	
 	
-	static func get<Element, Key>(_ db: OpaquePointer, _ : Element.Type, id: Key) -> Element? where Element: Model & Decodable, Element.PrimaryKey == Key {
-		return get(db, Element.self, query: "WHERE id = ? LIMIT 1 OFFSET 0", bindings: [id]).first
+	func get<Element, Key>(_ : Element.Type, id: Key) throws -> Element? where Element: Model & Decodable, Element.PrimaryKey == Key {
+		return (try get(Element.self, query: "WHERE id = ? LIMIT 1 OFFSET 0", bindings: [id])).first
 	}
 	
-	
-	fileprivate static func get<Element>(_ db: OpaquePointer, _: Element.Type, limit: Int? = nil, page: Int = 1) -> [Element] where Element: Decodable & Model {
-		var query = ""
-		if let limit = limit {
-			// make sure limit and page are positive so SQLite doesn't freak out
-			let l = limit > 0 ? limit : 1
-			let p = page > 0 ? page : 1
-			
-			query += "LIMIT \(l) OFFSET \((p-1) * l)"
-		}
-		return get(db, Element.self, query: query, bindings: [])
+	func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
+		return try get(Element.self, query: filter.query, bindings: filter.bindings)
 	}
-	
-	static func get<Element>(_ db: OpaquePointer, filter: Filter<Element>) -> [Element] where Element: Model & Decodable {
-		return get(db, Element.self, query: filter.query, bindings: filter.bindings)
-	}
-	
 }
 
 	
 //MARK: - Sync
 extension Database {
-	
-	public func get<T, U>(_ : T.Type, id: U) -> T? where T: Decodable & Model, T.PrimaryKey == U {
-		return sync { (db) in
-			return Database.get(db, T.self, id: id)
-		}
-	}
-	
-	public func get<T>(_ : T.Type) -> [T] where T: Decodable & Model {
-		return sync { db in
-			return Database.get(db, T.self)
-		}
-	}
-	
-	public func get<T>(_ : T.Type, limit: Int, page: Int = 1) -> [T] where T: Decodable & Model {
-		return sync { db in
-			return Database.get(db, T.self, limit: limit, page: page)
-		}
-	}
-	
-	public func get<T>(with filter: Filter<T>) -> [T] where T: Decodable & Model {
-		return sync { db in
-			return Database.get(db, filter: filter)
-		}
-	}
-	
-	public func get<T>(sorting: SortRule<T>) -> [T] where T: Decodable & Model {
-		return sync { db in
-			return Database.get(db, filter: Filter(sorting))
-		}
-	}
-	
-}
 
-	
-//MARK: - Async
-extension Database {
-	
-	public func get<T, U>(_ : T.Type, id: U, _ handler: @escaping (T?) -> Void) where T: Decodable & Model & Filterable, T.PrimaryKey == U {
-		async { (db) in
-			handler(Database.get(db, T.self, id: id))
-		}
+    public func get<T>(with filter: Filter<T>) throws -> [T] where T: Decodable & Model {
+        return try get(filter: filter)
+    }
+
+	public func get<T>(sorting: SortRule<T>) throws -> [T] where T: Decodable & Model {
+        return try get(with: Filter(sorting))
 	}
-	
-	public func get<T>(_ : T.Type, _ handler: @escaping ([T]) -> Void) where T: Decodable & Model {
-		async { (db) in
-			handler(Database.get(db, T.self))
-		}
-	}
-	
-	public func get<T>(_ : T.Type, limit: Int, page: Int = 1, _ handler: @escaping ([T]) -> Void) where T: Decodable & Model {
-		async { (db) in
-			handler(Database.get(db, T.self, limit: limit, page: page))
-		}
-	}
-	
-	public func get<T>(with filter: Filter<T>, _ handler: @escaping ([T]) -> Void) where T: Decodable & Model {
-		async { (db) in
-			handler(Database.get(db, filter: filter))
-		}
-	}
-	
-	public func get<T>(sorting: SortRule<T>, _ handler: @escaping ([T]) -> Void) where T: Decodable & Model {
-		async { (db) in
-			handler(Database.get(db, filter: Filter(sorting)))
-		}
-	}
-	
 }

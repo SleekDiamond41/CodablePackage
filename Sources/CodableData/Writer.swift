@@ -44,9 +44,9 @@ class Writer<T: Model & Encodable> {
 		)
 	}
 	
-	func replace(_ value: T, into table: inout Table, db: OpaquePointer, newColumnsHandler: ([Table.Column]) -> Void) throws {
+	func replace(_ value: T, into table: inout Table, connection: Connection, newColumnsHandler: ([Table.Column]) throws -> Void) rethrows {
 		
-		newColumnsHandler(writer.values.filter { (val) in
+		try newColumnsHandler(writer.values.filter { (val) in
 			return !table.columns.contains(where: { $0.name == val.0 })
 			}.map {
 				Table.Column(name: $0.0, type: $0.1.bindingValue)
@@ -56,18 +56,23 @@ class Writer<T: Model & Encodable> {
 		let values = [String](repeating: "?", count: writer.values.count).joined(separator: ", ")
 		
 		var s = Statement("REPLACE INTO \(table.name) (\(keys)) VALUES (\(values))")
-		
-		try s.prepare(in: db)
+
+        //TODO: refactor so this can actually throw if needed
+        try! s.prepare(in: connection.db)
 		defer {
 			s.finalize()
 		}
 		var i: Int32 = 1
 		for (_ , value) in writer.values {
-			try value.bindingValue.bind(into: s, at: i)
+            do {
+                try value.bindingValue.bind(into: s, at: i)
+            } catch {
+                preconditionFailure(String(reflecting: error))
+            }
 			i += 1
 		}
 		
-		try s.step()
+		s.step()
 	}
 	
 }

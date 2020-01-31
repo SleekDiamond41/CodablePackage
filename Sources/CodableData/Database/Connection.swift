@@ -10,10 +10,14 @@ import Foundation
 import SQLite3
 
 
+enum ConnectionError: Error {
+    case connectionUnexpectedlyNil
+    case statusCode(expected: Status, actual: Status)
+}
+
 class Connection {
 	
-	private let db: OpaquePointer
-	private let queue: DispatchQueue
+	let db: OpaquePointer
 	
 	
 	deinit {
@@ -24,16 +28,15 @@ class Connection {
 	}
 	
 	
-	private init(_ db: OpaquePointer, queue: DispatchQueue) {
+	private init(_ db: OpaquePointer) {
 		self.db = db
-		self.queue = queue
 	}
-	
-	convenience init(dir: URL, name: String, queue: DispatchQueue) {
-		
+
+	convenience init(dir: URL, name: String) throws {
+
 		let url = dir.appendingPathComponent(name).appendingPathExtension("sqlite3")//.removingPercentEncoding!
 		print("Opening connection to SQL database to:", url.path)
-		
+
 		if !FileManager.default.fileExists(atPath: url.path) {
 			print("Directory doesn't exist")
 			do {
@@ -51,37 +54,27 @@ class Connection {
 		} else {
 			print("Directory exists")
 		}
-		
+
 		var db: OpaquePointer!
 		let status = Status(sqlite3_open(url.path, &db))
+
 		guard db != nil else {
-			fatalError()
+            throw ConnectionError.connectionUnexpectedlyNil
 		}
+
 		guard status == .ok else {
 			print(Connection.error(db))
-			fatalError()
+            throw ConnectionError.statusCode(expected: .ok, actual: status)
 		}
-		self.init(db, queue: queue)
+
+		self.init(db)
 	}
 	
-	convenience init(_ configuration: Database.Configuration, queue: DispatchQueue) {
-		self.init(dir: configuration.directory, name: configuration.filename, queue: queue)
+	convenience init(_ configuration: Database.Configuration) throws {
+		try self.init(dir: configuration.directory, name: configuration.filename)
 	}
 	
 	private static func error(_ db: OpaquePointer) -> String {
 		return String(cString: sqlite3_errmsg(db))
 	}
-	
-	func sync<T>(_ block: (OpaquePointer) -> T) -> T {
-		return queue.sync {
-			return block(db)
-		}
-	}
-	
-	func async(_ block: @escaping (OpaquePointer) -> Void) {
-		queue.async {
-			block(self.db)
-		}
-	}
-	
 }

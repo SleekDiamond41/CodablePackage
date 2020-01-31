@@ -54,70 +54,71 @@ enum KVStorage {
 
 extension Database {
 	
-	static func store<T>(db: OpaquePointer, _ k: String, _ v: T) where T: Codable {
-		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
-		
-		let key: KVStorage.Key
-		
-		if let existing = get(db, filter: filter).first {
-			key = existing
-		} else {
-			key = KVStorage.Key(id: UUID(), key: k)
-		}
-		
-		let data = try! JSONEncoder().encode(v)
-		guard let str = String(data: data, encoding: .utf8) else {
-			fatalError()
-		}
-		
-		let value = KVStorage.Value(id: key.id, value: str)
-		
-		replace(db: db, key)
-		replace(db: db, value)
-	}
-	
-	public func store<T>(key: String, value: T) where T: Codable {
-		sync {
-			Database.store(db: $0, key, value)
-		}
-	}
-	
-	public func store<T>(key: String, value: T, _ handler: @escaping () -> Void) where T: Codable {
-		async {
-			Database.store(db: $0, key, value)
-			handler()
-		}
-	}
-	
-	static func value<T>(db: OpaquePointer, k: String) -> T? where T: Decodable {
-		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
-		
-		guard let key = get(db, filter: filter).first else {
-			return nil
-		}
-		guard let value = get(db, KVStorage.Value.self, id: key.id) else {
-			return nil
-		}
-		guard let data = value.value.data(using: .utf8) else {
-			return nil
-		}
-		
-		do {
-			return try JSONDecoder().decode(T.self, from: data)
-		} catch {
-			return nil
-		}
-	}
-	
-	public func value<T>(for key: String) -> T? where T: Decodable {
-		return sync {
-			return Database.value(db: $0, k: key)
-		}
-	}
-	
-	public func value<T>(for key: String, _ handler: @escaping (T?) -> Void) where T: Decodable {
-		async {
-			handler(Database.value(db: $0, k: key))
-		}
-	}
+//	static func store<T>(db: OpaquePointer, _ k: String, _ v: T) where T: Codable {
+//		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
+//
+//		let key: KVStorage.Key
+//
+//
+//		if let existing = get(filter: filter).first {
+//			key = existing
+//		} else {
+//			key = KVStorage.Key(id: UUID(), key: k)
+//		}
+//
+//		let data = try! JSONEncoder().encode(v)
+//		guard let str = String(data: data, encoding: .utf8) else {
+//			fatalError()
+//		}
+//
+//		let value = KVStorage.Value(id: key.id, value: str)
+//
+//		replace(db: db, key)
+//		replace(db: db, value)
+//	}
+//
+//	public func store<T>(key: String, value: T) where T: Codable {
+//		sync {
+//			Database.store(db: $0, key, value)
+//		}
+//	}
+//
+//	public func store<T>(key: String, value: T, _ handler: @escaping () -> Void) where T: Codable {
+//		async {
+//			Database.store(db: $0, key, value)
+//			handler()
+//		}
+//	}
+//
+//	static func value<T>(db: OpaquePointer, k: String) -> T? where T: Decodable {
+//		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
+//
+//		guard let key = get(db, filter: filter).first else {
+//			return nil
+//		}
+//		guard let value = get(db, KVStorage.Value.self, id: key.id) else {
+//			return nil
+//		}
+//		guard let data = value.value.data(using: .utf8) else {
+//			return nil
+//		}
+//
+//		do {
+//			return try JSONDecoder().decode(T.self, from: data)
+//		} catch {
+//			return nil
+//		}
+//	}
+//
+//	public func value<T>(for key: String) -> T? where T: Decodable {
+//		return sync {
+//			return Database.value(db: $0, k: key)
+//		}
+//	}
+//
+//	public func value<T>(for key: String, _ handler: @escaping (T?) -> Void) where T: Decodable {
+//		async {
+//			handler(Database.value(db: $0, k: key))
+//		}
+//	}
 }
