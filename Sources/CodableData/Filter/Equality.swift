@@ -13,7 +13,7 @@ public enum Equality<T>: Rule where T: Equatable & Bindable {
 	case equal(to: T)
 	case notEqual(to: T)
 	
-	var query: (String, [T]) {
+	internal var query: (String, [T]) {
 		switch self {
 		case .equal(to: let value):
 			if let oper = value as? EqualityOperand {
@@ -23,7 +23,7 @@ public enum Equality<T>: Rule where T: Equatable & Bindable {
 			}
 		case .notEqual(to: let value):
 			if let oper = value as? EqualityOperand {
-				return (oper.equalQuery, oper.shouldBind ? [value] : [])
+				return (oper.notEqualQuery, oper.shouldBind ? [value] : [])
 			} else {
 				return ("IS NOT ?", [value])
 			}
@@ -39,16 +39,16 @@ extension Filter {
 	}
 	
 	public func and<T>(_ path: KeyPath<Element, T>, is rule: Equality<T>) -> Filter where T: Equatable & Bindable {
-		return and(path: path, rule: rule)
+        return and(path: path, rule: rule)
 	}
 	
 	public func or<T>(_ path: KeyPath<Element, T>, is rule: Equality<T>) -> Filter where T: Equatable & Bindable {
-		return or(path: path, rule: rule)
+        return or(path: path, rule: rule)
 	}
-	
 }
 
 
+/// A type that uses custom equality comparisons
 fileprivate protocol EqualityOperand {
 	var shouldBind: Bool { get }
 	var equalQuery: String { get }
@@ -60,10 +60,10 @@ extension String: EqualityOperand {
 		return true
 	}
 	fileprivate var equalQuery: String {
-		return "LIKE"
+		return "LIKE ?"
 	}
 	fileprivate var notEqualQuery: String {
-		return "NOT LIKE"
+		return "NOT LIKE ?"
 	}
 }
 
@@ -72,7 +72,10 @@ extension Optional: EqualityOperand {
 		switch self {
 		case .none:
 			return false
-		case .some:
+		case .some(let val):
+            if let operand = val as? EqualityOperand {
+                return operand.shouldBind
+            }
 			return true
 		}
 	}

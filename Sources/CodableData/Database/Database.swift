@@ -17,8 +17,6 @@ enum DatabaseError: Error {
 /// - Note: A `Database` is not thread-safe, and its methods should only be called from a single thread. It is advised that consumers of this framework create a wrapper around a `Database` instance rather than consuming it directly. The wrapper should guarantee that the `Database` methods are accessed on a single thread. Note that this does not mean one thread at a time, it means one thread ever, as long as the `Database` instance exists. Failure to do so could cause unexpected behavior.
 public class Database {
 
-	let configuration: Configuration
-
 	let connection: Connection
 
 
@@ -38,8 +36,8 @@ public class Database {
 
         let config = Configuration(directory: dir, filename: filename)
 
-        self.configuration = config
-        self.connection = try Connection(config)
+        self.connection = Connection(config)
+        try self.connection.connect()
 	}
 
     @discardableResult

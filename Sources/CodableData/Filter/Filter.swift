@@ -1,5 +1,5 @@
 //
-//  WhereClause.swift
+//  Filter.swift
 //  SQL
 //
 //  Created by Michael Arrington on 4/2/19.
@@ -36,20 +36,6 @@ public struct Filter<Element> where Element: Filterable {
 	private var limit: Limit?
 	private var sort: SortRule<Element>?
 
-	static func query(_ q: String, sort: SortRule<Element>?, limit: Limit?) -> String {
-		var result = ""
-		if q.count > 0 {
-			result += "WHERE " + q
-		}
-		if let sort = sort {
-			result += (result.count > 0 ? " " : "") + sort.query
-		}
-		if let limit = limit {
-			result += (result.count > 0 ? " " : "") + limit.query
-		}
-		return result
-	}
-
 
 	init(query: String, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
 		self._query = query
@@ -65,98 +51,93 @@ public struct Filter<Element> where Element: Filterable {
 		self.sort = sort
 	}
 
-	public func and(_ filter: Filter) -> Filter {
-		var copy = self
-		copy._query = "(" + _query + ") AND (" + filter._query + ")"
-		return copy
-	}
+    init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, U.T == T {
+        let (str, vals) = rule.query
+        self._query = "\(Element.key(for: path).stringValue) \(str)"
+        self.bindings = vals
+        self.limit = nil
+        self.sort = nil
+    }
 
-	public func or(_ filter: Filter) -> Filter {
-		var copy = self
-		copy._query = "(" + _query + ") OR (" + filter._query + ")"
-		return copy
-	}
+    public init() {
+        self._query = ""
+        self.bindings = []
+        self.limit = nil
+        self.sort = nil
+    }
 
+    // MARK: - Helper Methods
+    private func join(_ other: Filter, with conjunction: String, usingParentheses: Bool) -> Filter {
+        var copy = self
 
-	init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, U.T == T {
-		let (str, vals) = rule.query
-		self._query = "\(Element.key(for: path).stringValue) \(str)"
-		self.bindings = vals
-		self.limit = nil
-		self.sort = nil
-	}
+        if _query.isEmpty {
+            // don't include self._query if there's nothing to add,
+            // but use parentheses just to be extra safe
+            copy._query = other._query
+        }
+        else {
+            if usingParentheses {
+                copy._query = "(" + _query + ") \(conjunction) (" + other._query + ")"
+            }
+            else {
+                copy._query = _query + " \(conjunction) " + other._query
+            }
+        }
+
+        copy.bindings += other.bindings
+
+        if let sort = other.sort {
+            copy.sort = sort
+        }
+
+        if let limit = other.limit {
+            copy.limit = limit
+        }
+
+        return copy
+    }
 
 	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
-		let (str, vals) = rule.query
-
-		var copy = self
-		copy._query += " AND \(Element.key(for: path).stringValue) \(str)"
-		copy.bindings += vals
-		return copy
+        return join(Filter(path: path, rule: rule), with: "AND", usingParentheses: false)
 	}
 
 	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
-		let (str, vals) = rule.query
+
+        return join(Filter(path: path, rule: rule), with: "OR", usingParentheses: false)
+	}
+
+    // MARK: - Public Methods
+
+    public func and(_ filter: Filter) -> Filter {
+        return join(filter, with: "AND", usingParentheses: true)
+    }
+
+    public func or(_ filter: Filter) -> Filter {
+
+        return join(filter, with: "OR", usingParentheses: true)
+    }
+
+	public func sorting<T>(by path: KeyPath<Element, T>, ascending: Bool = false) -> Filter where T: Bindable & Comparable {
 
 		var copy = self
-		copy._query += " OR \(Element.key(for: path).stringValue) \(str)"
-		copy.bindings += vals
+        copy.sort = self.sort?.then(path, ascending: ascending) ?? SortRule(path, ascending: ascending)
 		return copy
 	}
 
-	public func sort<T>(by path: KeyPath<Element, T>, ascending: Bool = false) -> Filter where T: Bindable & Comparable {
-		let s: SortRule<Element>
-		if let sort = sort {
-			s = sort
-		} else {
-			s = SortRule(path, ascending: ascending)
-		}
-		var copy = self
-		copy.sort = s
-		return copy
-	}
-
-	public func sort(by sort: SortRule<Element>) -> Filter {
-		var copy = self
-		copy.sort = sort
-		return copy
-	}
-
-	public func limit(_ limit: Int, _ page: Int = 1) -> Filter {
+	public func limit(_ limit: Int, page: Int = 1) -> Filter {
 		var copy = self
 		copy.limit = Limit(limit, page)
 		return copy
 	}
 }
 
+extension Filter: CustomStringConvertible {
 
-func test() {
-	
-//	let ids = (UUID(), UUID(), UUID())
-//	
-//	let a = Filter<Person>(\.id, is: .equal(to: ids.0))
-//		.or(\.id, is: .equal(to: ids.1))
-//		.or(\.id, is: .equal(to: ids.2))
-//	// WHERE id LIKE ? OR id LIKE ? OR id LIKE ?
-//	
-//	let b = Filter(\Person.nickName, is: .equal(to: nil))
-//	
-//	let c = Filter<Person>(\.id, .equal, to: ids.0)
-//	
-//	
-//	
-//	let filter = Filter(\Person.name, is: .notEqual(to: "Michael"))
-//		.or(\.id, is: .notEqual(to: UUID()))
-//		.or(\.name, is: .notEqual(to: "Arrington"))
-//		.or(\.id, is: .notEqual(to: UUID()))
-}
-
-
-class MyClass: Equatable {
-	static func == (left: MyClass, right: MyClass) -> Bool {
-		return left.id == right.id
-	}
-	
-	let id = UUID()
-	var name: String = ""
+    public var description: String {
+        return """
+        Filter<\(Element.self)>
+            Query: "\(query)"
+            Binding Values: \(bindings)
+        """
+    }
 }

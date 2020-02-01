@@ -13,68 +13,107 @@ import SQLite3
 enum ConnectionError: Error {
     case connectionUnexpectedlyNil
     case statusCode(expected: Status, actual: Status)
+    case disconnectFailure
 }
 
 class Connection {
-	
-	let db: OpaquePointer
-	
-	
+
+
+    // MARK: Private Properties
+
+    private let config: Database.Configuration
+    private let fileManager = FileManager()
+
+
+    // MARK: Public Properties
+
+    private(set) var db: OpaquePointer!
+
+
+    // MARK: Initializers
+
+    init(_ configuration: Database.Configuration) {
+
+        self.config = configuration
+    }
+
+
 	deinit {
-		let status = Status(sqlite3_close(db))
-		guard status == .ok else {
-			fatalError()
-		}
-	}
-	
-	
-	private init(_ db: OpaquePointer) {
-		self.db = db
+        do {
+            try disconnect()
+        } catch {
+            preconditionFailure(String(reflecting: error))
+        }
 	}
 
-	convenience init(dir: URL, name: String) throws {
 
-		let url = dir.appendingPathComponent(name).appendingPathExtension("sqlite3")//.removingPercentEncoding!
-		print("Opening connection to SQL database to:", url.path)
+    // MARK: Internal Methods
 
-		if !FileManager.default.fileExists(atPath: url.path) {
-			print("Directory doesn't exist")
-			do {
-				print("Creating directory")
-				try FileManager.default.createDirectory(atPath: dir.path, withIntermediateDirectories: true)
-				print("Created directory")
-			} catch let error as NSError {
-				print(url.path)
-				print(url.absoluteString)
-				print(url)
-				guard error.code == 516 else {
-					fatalError(String(reflecting: error))
-				}
-			}
-		} else {
-			print("Directory exists")
-		}
+    func connect() throws {
 
-		var db: OpaquePointer!
-		let status = Status(sqlite3_open(url.path, &db))
+        if !fileExists() {
+            createFile()
+        }
 
-		guard db != nil else {
+        try _connect()
+    }
+
+    func deleteEverything() throws {
+
+        try disconnect()
+        try deleteFile()
+    }
+
+
+    // MARK: Helper Methods
+
+    private func fileExists() -> Bool {
+
+        return fileManager.fileExists(atPath: config.url.absoluteString)
+    }
+
+    private func createFile() {
+
+        fileManager.createFile(atPath: config.url.absoluteString,
+                               contents: nil,
+                               attributes: nil)
+    }
+
+    private func _connect() throws {
+
+        var db: OpaquePointer!
+        let status = Status(sqlite3_open(config.url.absoluteString, &db))
+
+        guard db != nil else {
             throw ConnectionError.connectionUnexpectedlyNil
-		}
+        }
 
-		guard status == .ok else {
-			print(Connection.error(db))
+        guard status == .ok else {
             throw ConnectionError.statusCode(expected: .ok, actual: status)
-		}
+        }
 
-		self.init(db)
-	}
-	
-	convenience init(_ configuration: Database.Configuration) throws {
-		try self.init(dir: configuration.directory, name: configuration.filename)
-	}
-	
-	private static func error(_ db: OpaquePointer) -> String {
-		return String(cString: sqlite3_errmsg(db))
-	}
+        self.db = db
+    }
+
+    private func disconnect() throws {
+
+        guard db != nil else {
+            return
+        }
+
+        defer {
+            db = nil
+        }
+
+        let status = Status(sqlite3_close(db))
+
+        guard status == .ok else {
+            throw ConnectionError.disconnectFailure
+        }
+    }
+
+    private func deleteFile() throws {
+
+        try fileManager.removeItem(at: config.url)
+    }
 }

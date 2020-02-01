@@ -15,7 +15,7 @@ public enum Comparison<T>: Rule where T: Bindable & Comparable {
 	case between(T, and: T)
 	case notBetween(T, and: T)
 	
-	var query: (String, [T]) {
+	internal var query: (String, [T]) {
 		switch self {
 		case .greater(than: let val):
 			return ("> ?", [val])
@@ -39,7 +39,7 @@ extension Filter {
 	}
 	
 	public func and<T>(_ path: KeyPath<Element, T>, is rule: Comparison<T>) -> Filter where T: Bindable & Comparable {
-		return and(path: path, rule: rule)
+        return and(path: path, rule: rule)
 	}
 	
 	public func or<T>(_ path: KeyPath<Element, T>, is rule: Comparison<T>) -> Filter where T: Bindable & Comparable {

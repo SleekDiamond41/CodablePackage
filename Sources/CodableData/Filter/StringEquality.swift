@@ -15,7 +15,7 @@ public enum StringEquality: Rule {
 	case regex(String)
 	case matches(String)
 	
-	var query: (String, [String]) {
+	internal var query: (String, [String]) {
 		switch self {
 		case .like(let val):
 			return ("LIKE ?", [val])
@@ -32,16 +32,15 @@ public enum StringEquality: Rule {
 
 extension Filter {
 	
-	public init(_ path: KeyPath<Element, String>, _ rule: StringEquality) {
+	public init(_ path: KeyPath<Element, String>, is rule: StringEquality) {
 		self.init(path: path, rule: rule)
 	}
 	
-	public func and(_ path: KeyPath<Element, String>, _ rule: StringEquality) -> Filter {
-		return and(path: path, rule: rule)
+	public func and(_ path: KeyPath<Element, String>, is rule: StringEquality) -> Filter {
+        return and(path: path, rule: rule)
 	}
 	
-	public func or(_ path: KeyPath<Element, String>, _ rule: StringEquality) -> Filter {
-		return or(path: path, rule: rule)
+	public func or(_ path: KeyPath<Element, String>, is rule: StringEquality) -> Filter {
+        return or(path: path, rule: rule)
 	}
-	
 }

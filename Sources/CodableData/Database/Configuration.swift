@@ -15,5 +15,11 @@ extension Database {
 
 		let directory: URL
 		let filename: String
+
+        var url: URL {
+            return directory
+                .appendingPathComponent(filename)
+                .appendingPathExtension("sqlite3")
+        }
 	}
 }
