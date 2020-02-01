@@ -21,7 +21,7 @@ class Connection {
 
     // MARK: Private Properties
 
-    private let config: Database.Configuration
+    private let config: Configuration
     private let fileManager = FileManager()
 
 
@@ -32,7 +32,7 @@ class Connection {
 
     // MARK: Initializers
 
-    init(_ configuration: Database.Configuration) {
+    init(_ configuration: Configuration) {
 
         self.config = configuration
     }

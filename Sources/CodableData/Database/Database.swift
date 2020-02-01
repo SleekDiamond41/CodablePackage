@@ -54,4 +54,9 @@ public class Database {
             fatalError(String(reflecting: error))
         }
 	}
+
+    public func deleteTheWholeDangDatabase() throws {
+        try connection.deleteEverything()
+        try connection.connect()
+    }
 }

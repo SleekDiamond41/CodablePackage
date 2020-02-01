@@ -9,17 +9,14 @@
 import struct Foundation.URL
 
 
-extension Database {
+struct Configuration {
 
-	struct Configuration {
+    let directory: URL
+    let filename: String
 
-		let directory: URL
-		let filename: String
-
-        var url: URL {
-            return directory
-                .appendingPathComponent(filename)
-                .appendingPathExtension("sqlite3")
-        }
-	}
+    var url: URL {
+        return directory
+            .appendingPathComponent(filename)
+            .appendingPathExtension("sqlite3")
+    }
 }
