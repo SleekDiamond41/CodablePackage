@@ -50,9 +50,10 @@ class Connection {
     // MARK: Internal Methods
 
     func connect() throws {
+        assert(db == nil)
 
-        if !fileExists() {
-            createFile()
+        if !directoryExists() {
+            try createDirectory()
         }
 
         try _connect()
@@ -67,22 +68,21 @@ class Connection {
 
     // MARK: Helper Methods
 
-    private func fileExists() -> Bool {
-
-        return fileManager.fileExists(atPath: config.url.absoluteString)
+    private func directoryExists() -> Bool {
+        var isDirectory = ObjCBool(false)
+        return fileManager.fileExists(atPath: config.url.absoluteString, isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
-    private func createFile() {
+    private func createDirectory() throws {
 
-        fileManager.createFile(atPath: config.url.absoluteString,
-                               contents: nil,
-                               attributes: nil)
+        try fileManager.createDirectory(atPath: config.directory.path, withIntermediateDirectories: true)
     }
 
     private func _connect() throws {
 
         var db: OpaquePointer!
-        let status = Status(sqlite3_open(config.url.absoluteString, &db))
+        let status = Status(sqlite3_open(config.url.path, &db))
 
         guard db != nil else {
             throw ConnectionError.connectionUnexpectedlyNil
