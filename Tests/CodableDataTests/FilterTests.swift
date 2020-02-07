@@ -55,8 +55,8 @@ class FilterTests: XCTestCase {
     func testDescription() {
         XCTAssertEqual(Filter<Name>().description, """
         Filter<Name>
-            Query: ""
-            Binding Values: []
+            - Query: ""
+            - Binding Values: []
         """)
 
         let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
@@ -67,8 +67,8 @@ class FilterTests: XCTestCase {
 
         XCTAssertEqual(filter.description, """
         Filter<Name>
-            Query: "WHERE ((last NOT LIKE ?) OR (age > ? AND first LIKE ?) AND age < ?) OR (age < ?)"
-            Binding Values: ["Arrington", 20, "Michael", 40, 40]
+            - Query: "WHERE ((last NOT LIKE ?) OR (age > ? AND first LIKE ?) AND age < ?) OR (age < ?)"
+            - Binding Values: ["Arrington", 20, "Michael", 40, 40]
         """)
     }
 }

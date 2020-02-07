@@ -136,8 +136,8 @@ extension Filter: CustomStringConvertible {
     public var description: String {
         return """
         Filter<\(Element.self)>
-            Query: "\(query)"
-            Binding Values: \(bindings)
+            - Query: "\(query)"
+            - Binding Values: \(bindings)
         """
     }
 }
