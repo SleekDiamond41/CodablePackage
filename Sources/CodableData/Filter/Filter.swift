@@ -124,7 +124,7 @@ public struct Filter<Element> where Element: Filterable {
 		return copy
 	}
 
-	public func limit(_ limit: Int, page: Int = 1) -> Filter {
+	public func limit(_ limit: Int, page: Int = 0) -> Filter {
 		var copy = self
 		copy.limit = Limit(limit, page)
 		return copy

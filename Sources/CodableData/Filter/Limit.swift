@@ -11,14 +11,22 @@ import Foundation
 
 struct Limit {
 	var query: String {
-        // pages start at 1
-		return "LIMIT \(limit) OFFSET \(limit * (max(1, page-1)))"
+        // pages start at 0, negative values are a no-no
+        let offset = max(0, page) * limit
+
+        let limitString = "LIMIT \(limit)"
+
+        if offset > 0 {
+            return limitString + " OFFSET \(offset)"
+        }
+
+        return limitString
 	}
 	
 	let limit: Int
 	let page: Int
 	
-	init(_ limit: Int, _ page: Int = 1) {
+	init(_ limit: Int, _ page: Int) {
 		self.limit = limit
 		self.page = page
 	}

@@ -35,18 +35,18 @@ final class CodableDataTests: XCTestCase {
         XCTAssertEqual(filter.bindings.count, 1)
 
         filter = Filter<Name>()
-        filter = filter.and(\.first, is: .equal(to: "Michael"))
-        XCTAssertEqual(filter.query, "WHERE first LIKE ?")
+        filter = filter.and(\.first, is: .equal(to: "Michael")).limit(10)
+        XCTAssertEqual(filter.query, "WHERE first LIKE ? LIMIT 10")
         XCTAssertEqual(filter.bindings.count, 1)
 
-        filter = filter.and(\.last, is: .like("Arrington"))
-        XCTAssertEqual(filter.query, "WHERE first LIKE ? AND last LIKE ?")
+        filter = filter.and(\.last, is: .like("Arrington")).limit(50, page: 3)
+        XCTAssertEqual(filter.query, "WHERE first LIKE ? AND last LIKE ? LIMIT 50 OFFSET 150")
         XCTAssertEqual(filter.bindings.count, 2)
 
         let otherFilter = Filter<Name>(\.age, is: .between(18, and: 30))
         filter = filter.or(otherFilter)
         // FIXME: look into logical ways to make complex AND/ORs split up in an appropriate way
-        XCTAssertEqual(filter.query, "WHERE (first LIKE ? AND last LIKE ?) OR (age BETWEEN ? AND ?)")
+        XCTAssertEqual(filter.query, "WHERE (first LIKE ? AND last LIKE ?) OR (age BETWEEN ? AND ?) LIMIT 50 OFFSET 150")
         XCTAssertEqual(filter.bindings.count, 4)
     }
 
