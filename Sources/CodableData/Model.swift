@@ -26,7 +26,7 @@ public protocol Model {
 	///
 	///     String(reflecting: Foo.Bar.self) == "Foo.Bar.Type"
 	///     String(describing: Foo.Bar.self) == "Bar"
-	///     "\(Foo.Bar.self)" == "Bar"
+	///     "\(Foo.Bar.self)"                == "Bar"
 	///
 	/// CodableData's default behavior is to use the former and remove ".type" from the end.
 	static var tableName: String { get }
@@ -43,8 +43,11 @@ public protocol UUIDModel: Model where PrimaryKey == UUID {
 }
 
 //TODO: implement using row ids instead of UUIDs
+// if id is valid, update, else insert (table definition should include primary key being
+// autoincrementing, if id is nil then it's ignored when inserting, then we read back the
+// newest value from the database to get it with a valid id
 protocol RowModel: Model where PrimaryKey == Int64? {
-	var id: Int64? { get }
+	var id: Int64? { get set }
 }
 
 struct Paper: Codable, UUIDModel {
