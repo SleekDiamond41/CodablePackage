@@ -24,38 +24,28 @@ extension Database {
 		}
 		
 		var s = Statement("SELECT * FROM \(table.name)" + q + ";")
-		do {
-            try s.prepare(in: connection.db)
-			defer {
-				s.finalize()
-			}
-			
-			var i: Int32 = 1
-			for b in bindings {
-				try b.bindingValue.bind(into: s, at: i)
-				i += 1
-			}
-			
-			var results = [Element]()
-			var status = s.step()
-			
-			let reader = Reader()
-			
-			while status == .row {
-				results.append(try reader.read(Element.self, s: s, table))
-				status = s.step()
-			}
-			return results
-			
-		} catch {
-			print(String(reflecting: error))
-			return []
+
+		try s.prepare(in: connection.db)
+		defer {
+			s.finalize()
 		}
-	}
-	
-	
-	func get<Element, Key>(_ : Element.Type, id: Key) throws -> Element? where Element: Model & Decodable, Element.PrimaryKey == Key {
-		return (try get(Element.self, query: "WHERE id = ? LIMIT 1 OFFSET 0", bindings: [id])).first
+		
+		var i: Int32 = 1
+		for b in bindings {
+			try b.bindingValue.bind(into: s, at: i)
+			i += 1
+		}
+		
+		var results = [Element]()
+		var status = s.step()
+		
+		let reader = Reader()
+		
+		while status == .row {
+			results.append(try reader.read(Element.self, s: s, table))
+			status = s.step()
+		}
+		return results
 	}
 	
 	func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {

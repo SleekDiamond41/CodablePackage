@@ -46,7 +46,7 @@ struct Person: Model, Equatable {
 
 
 enum ReaderError: Error {
-	case noSuchTable(String)
+	case noSuchColumn(String)
 }
 
 class Reader {
@@ -108,23 +108,20 @@ fileprivate class _Reader: Decoder {
 		}
 		
 		func contains(_ key: Key) -> Bool {
-			return index(for: key) != nil
+			return (try? index(for: key)) != nil
 		}
 		
-		private func index(for key: Key) -> Int32? {
+		private func index(for key: Key) throws -> Int32 {
 			guard let index = decoder.table.columns.firstIndex(where: { $0.name == key.stringValue }) else {
-//				fatalError()
-				return nil
+				throw ReaderError.noSuchColumn(key.stringValue)
 			}
 			return Int32(index)
 		}
 		
 		func decodeNil(forKey key: Key) throws -> Bool {
-			guard let index = index(for: key) else {
-				return true
-			}
+			let i = try index(for: key)
 			
-			let type = ColumnType(sqlite3_column_type(decoder.s.p, index))
+			let type = ColumnType(sqlite3_column_type(decoder.s.p, i))
 			return type == nil
 			
 //			do {
@@ -142,7 +139,7 @@ fileprivate class _Reader: Decoder {
 		}
 		
 		func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-			let i = index(for: key)
+			let i = try index(for: key)
 			
 			do {
 				if let U = T.self as? Unbindable.Type {
@@ -205,7 +202,5 @@ fileprivate class _Reader: Decoder {
 				return try d.decode(T.self, from: data)
 			}
 		}
-		
 	}
-	
 }

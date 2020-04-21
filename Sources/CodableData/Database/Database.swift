@@ -18,6 +18,8 @@ enum DatabaseError: Error {
 public class Database {
 
 	let connection: Connection
+	
+	public let dir: URL
 
 
     /// /// Opens a connection to  a new database at the given directory, with the given filename.
@@ -35,8 +37,10 @@ public class Database {
         filename: String = "Data") throws {
 
         let config = Configuration(directory: dir, filename: filename)
-
+		
+		self.dir = config.directory
         self.connection = Connection(config)
+		
         try self.connection.connect()
 	}
 
@@ -59,4 +63,8 @@ public class Database {
         try connection.deleteEverything()
         try connection.connect()
     }
+	
+	func deleteWithoutReconnecting() throws {
+		try connection.deleteEverything()
+	}
 }

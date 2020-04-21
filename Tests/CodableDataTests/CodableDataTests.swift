@@ -2,27 +2,28 @@ import XCTest
 @testable import CodableData
 
 final class CodableDataTests: XCTestCase {
+	
+	var db: Database!
 
     override func setUp() {
         super.setUp()
+		
+		db = try! Database(filename: "CodableDataTests")
     }
 
     override func tearDown() {
         super.tearDown()
-
-        do {
-            let db = try Database()
-
-            for model in try db.get(filter: Filter<Name>()) {
-                try db.delete(model)
-            }
-        } catch {
-            XCTFail(String(reflecting: error))
-        }
+		
+		try? db?.deleteWithoutReconnecting()
     }
 
     func testCreateDatabase() {
-        XCTAssertNoThrow(try Database(filename: "Testing"))
+		do {
+			let db = try Database(filename: "TestCreateDatabase")
+			try db.deleteWithoutReconnecting()
+		} catch {
+			XCTFail(String(describing: error))
+		}
     }
 
     func testFilter() {
@@ -60,20 +61,15 @@ final class CodableDataTests: XCTestCase {
 	}
 
     func testDatabase() {
+		
+		XCTAssertEqual(try db.count(with: Filter<Name>()), 0)
 
-        do {
-            let db = try Database()
+		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
 
-            XCTAssertEqual(try db.count(with: Filter<Name>()), 0)
+		XCTAssertNoThrow(try db.save(model))
 
-            let model = Name(id: UUID(), first: "Michael", last: "Arrington")
-
-            XCTAssertNoThrow(try db.save(model))
-
-            XCTAssertEqual(try db.count(with: Filter<Name>()), 1)
-
-        } catch {
-            XCTFail(error.localizedDescription)
-        }
+		XCTAssertEqual(try db.count(with: Filter<Name>()), 1)
+		
+		XCTAssertNoThrow(try db.deleteTheWholeDangDatabase())
     }
 }
