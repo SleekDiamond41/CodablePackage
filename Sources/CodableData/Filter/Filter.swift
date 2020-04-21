@@ -87,10 +87,14 @@ public struct Filter<Element> where Element: Filterable {
         copy.bindings += other.bindings
 
         if let sort = other.sort {
+			// if there's a more recent `sort`,
+			// that overrides the old value
             copy.sort = sort
         }
 
         if let limit = other.limit {
+			// if there's a more recent `limit`,
+			// that overrides the old value
             copy.limit = limit
         }
 
@@ -117,7 +121,7 @@ public struct Filter<Element> where Element: Filterable {
         return join(filter, with: "OR", usingParentheses: true)
     }
 
-	public func sorting<T>(by path: KeyPath<Element, T>, ascending: Bool = false) -> Filter where T: Bindable & Comparable {
+	public func sorting<T>(by path: KeyPath<Element, T>, ascending: Bool = true) -> Filter where T: Bindable & Comparable {
 
 		var copy = self
         copy.sort = self.sort?.then(path, ascending: ascending) ?? SortRule(path, ascending: ascending)

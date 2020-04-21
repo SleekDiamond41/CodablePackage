@@ -9,14 +9,14 @@
 import Foundation
 
 fileprivate func string<Element, T>(path: KeyPath<Element, T>, ascending: Bool) -> String where Element: Filterable, T: Bindable & Comparable {
-	return "ORDER BY \(Element.key(for: path).stringValue) \(ascending ? "ASC" : "DESC")"
+	return "\(Element.key(for: path).stringValue) \(ascending ? "ASC" : "DESC")"
 }
 
 
 public struct SortRule<Element: Filterable> {
 	
 	var query: String {
-		return parts.joined(separator: ", ")
+		return "ORDER BY " + parts.joined(separator: ", ")
 	}
 	private let parts: [String]
 	

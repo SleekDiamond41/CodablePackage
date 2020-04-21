@@ -49,6 +49,15 @@ final class CodableDataTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE (first LIKE ? AND last LIKE ?) OR (age BETWEEN ? AND ?) LIMIT 50 OFFSET 150")
         XCTAssertEqual(filter.bindings.count, 4)
     }
+	
+	func testSorting() {
+		let filter = Filter<Name>()
+			.sorting(by: \.age)
+			.sorting(by: \.first, ascending: true)
+			.sorting(by: \.last, ascending: false)
+		
+		XCTAssertEqual(filter.query, "ORDER BY age ASC, first ASC, last DESC")
+	}
 
     func testDatabase() {
 
