@@ -8,11 +8,28 @@
 import XCTest
 @testable import CodableData
 
+extension KeyedDecodingContainer {
+	
+	@inlinable
+	func decode<T: Decodable>(_ value: inout T, forKey key: Key) throws {
+		value = try decode(T.self, forKey: key)
+	}
+}
+
+
+//@inlinable func decode<T, C>(_ container: C, _ value: inout T, forKey key: C.Key) throws where
+//	T: Decodable,
+//	C: KeyedDecodingContainerProtocol {
+//		value = try container.decode(T.self, forKey: key)
+//}
+
+
 fileprivate struct Person: UUIDModel, Codable {
 	private(set) var id = UUID()
 	
 	var firstName = ""
-	var age: Int?
+	var age = 0
+	var noColumn = 0
 	
 	init(id: UUID, firstName: String, age: Int? = nil) {
 		self.id = id
@@ -24,13 +41,16 @@ fileprivate struct Person: UUIDModel, Codable {
 		
 		self.id = try container.decode(UUID.self, forKey: .id)
 		self.firstName = try container.decode(String.self, forKey: .firstName)
-		self.age = try container.decode(Int.self, forKey: .age)
+		
+		try? container.decode(&age, forKey: .age)
+		try? container.decode(&noColumn, forKey: .noColumn)
 	}
 	
 	enum CodingKeys: String, CodingKey {
 		case id
 		case firstName = "first_name"
 		case age
+		case noColumn = "no_column"
 	}
 }
 
@@ -44,6 +64,8 @@ extension Person: Filterable {
 			return .firstName
 		case \Person.age:
 			return .age
+		case \Person.noColumn:
+			return .noColumn
 		default:
 			preconditionFailure("unrecognized KeyPath")
 		}
@@ -88,16 +110,38 @@ class ReaderTests: XCTestCase {
 		
 		let filter = Filter<Person>()
 		
-		XCTAssertThrowsError(try db.get(with: filter), "expected an error to be thrown") { (error) in
+		// FIXME: update this test to reflect desired behavior:
+		// if a query includes references to a column that doesn't exist
+		// it should not throw an error.
+		// If the database tries to read a value from a column that doesn't exist,
+		// an error should be thrown (ReaderError.noSuchColumn(String))
+		XCTAssertNoThrow(try db.get(with: Filter<Person>()))
+		
+		XCTAssertThrowsError(try db.get(with: Filter<Person>(\.noColumn, is: .equal(to: 0))), "expected an error to be thrown") { (error) in
 			guard let readerError = error as? ReaderError else {
-				XCTFail("unexpected error: '\(error)'")
+				XCTFail("unexpected error: \(error)")
 				return
 			}
 			
 			switch readerError {
 			case .noSuchColumn(let column):
-				XCTAssertEqual(column, Person.CodingKeys.age.stringValue)
+				XCTAssertEqual(column, Person.CodingKeys.noColumn.stringValue)
 			}
+		}
+		
+		do {
+			let models = try db.get(with: filter)
+			
+			XCTAssertEqual(models.count, 1)
+			XCTAssertEqual(models.first?.id, person.id)
+			XCTAssertEqual(models.first?.firstName, person.firstName)
+			XCTAssertEqual(models.first?.age, person.age)
+			XCTAssertEqual(models.first?.noColumn, person.noColumn)
+			
+		} catch let error as PreparationError {
+			print(error)
+		} catch {
+			XCTFail("inconsistent error throwing '\(String(describing: error))'")
 		}
 	}
 }

@@ -49,7 +49,34 @@ extension Database {
 	}
 	
 	func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
-		return try get(Element.self, query: filter.query, bindings: filter.bindings)
+		var copy = filter
+		
+		guard let t = try table(Element.tableName) else {
+			return []
+		}
+		
+		for _ in t.columns.indices {
+			// better than a while true loop... right?
+			
+			do {
+				return try get(Element.self, query: copy.query, bindings: copy.bindings)
+				
+			} catch let error as PreparationError {
+				if !copy.usesColumns {
+					// if we've queried until there was nothing left,
+					// move on with your day
+					break
+				}
+				
+				switch error {
+				case let .noSuchColumn(col):
+					copy.remove(column: col)
+				case let .syntax(message, query: query):
+					preconditionFailure("\(message): \(query)")
+				}
+			}
+		}
+		return []
 	}
 }
 

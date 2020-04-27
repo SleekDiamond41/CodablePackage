@@ -14,77 +14,180 @@ protocol Rule {
 	var query: (String, [T]) { get }
 }
 
+enum JoinMethod: String {
+	case and = "AND"
+	case or = "OR"
+}
+
+protocol _Query {
+	var query: String { get }
+	var bindings: [Bindable] { get }
+	
+	mutating func remove(column: String)
+}
+
+
+struct AnyRule: _Query {
+	let column: String
+	
+	private(set) var query: String
+	private(set) var bindings: [Bindable]
+	
+	init<R>(column: String, rule: R) where R: Rule {
+		self.column = column
+		
+		let stuff = rule.query
+		
+		self.bindings = stuff.1
+		self.query = "\(column) \(stuff.0)"
+	}
+	
+	mutating func remove(column: String) {
+		if column == self.column {
+			query = ""
+			bindings = []
+		}
+	}
+}
+
+
+struct Compound: _Query {
+	
+	var query: String {
+		var results = [String]()
+		
+		for i in parts.indices {
+			guard !parts[i].1.query.isEmpty else {
+				continue
+			}
+			var s = ""
+			
+			if i > parts.startIndex {
+				s += " " + parts[i].0.rawValue + " "
+			}
+			
+			if usesParenthesis {
+				s += "("
+			}
+			
+			s += parts[i].1.query
+			
+			if usesParenthesis {
+				s += ")"
+			}
+			
+			results.append(s)
+		}
+		
+		guard !results.isEmpty else {
+			return ""
+		}
+		
+		return results.joined()
+	}
+	
+	var bindings: [Bindable] {
+		return Array(parts.map { $0.1.bindings }.joined())
+	}
+	
+	var parts = [(JoinMethod, _Query)]()
+	let usesParenthesis: Bool
+	
+	mutating func remove(column: String) {
+		for i in parts.indices {
+			parts[i].1.remove(column: column)
+		}
+	}
+}
+
+
+
 
 public struct Filter<Element> where Element: Filterable {
 
 	var query: String {
-		var result = ""
-		if _query.count > 0 {
-			result += "WHERE " + _query
-		}
-		if let sort = sort {
-			result += (result.count > 0 ? " " : "") + sort.query
-		}
-		if let limit = limit {
-			result += (result.count > 0 ? " " : "") + limit.query
-		}
-		return result
+		
+		return [
+			(_query?.query as Optional<String>).map { !$0.isEmpty ? "WHERE " + $0 : "" },
+			sort?.query,
+			limit?.query,
+		]
+		.compactMap { ($0?.isEmpty ?? true) ? nil : $0 }
+		.joined(separator: " ")
+		
+//		var result = ""
+//
+//		if let query = _query?.query, !query.isEmpty {
+//			result += "WHERE " + query
+//		}
+//		if let sort = sort {
+//			result += (result.count > 0 ? " " : "") + sort.query
+//		}
+//		if let limit = limit {
+//			result += (result.count > 0 ? " " : "") + limit.query
+//		}
+//		return result
 	}
+	
+	var bindings: [Bindable] { _query?.bindings ?? [] }
 
-	private(set) var bindings: [Bindable]
-	private var _query: String
+	private(set) var _query: _Query?
 	private var limit: Limit?
 	private var sort: SortRule<Element>?
+	
+	var usesColumns: Bool {
+		return [_query?.query, sort?.query]
+			.compactMap { $0 }
+			.reduce(false) { $0 || !$1.isEmpty }
+	}
+	
+	mutating func remove(column: String) {
+		_query?.remove(column: column)
+		sort?.remove(column: column)
+	}
 
 
-	init(query: String, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
+	init(query: _Query?, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
 		self._query = query
-		self.bindings = bindings
+//		self.bindings = bindings
 		self.limit = limit
 		self.sort = sort
 	}
 
 	init(_ sort: SortRule<Element>) {
-		self._query = ""
-		self.bindings = []
+//		self._query = ""
+//		self.bindings = []
 		self.limit = nil
 		self.sort = sort
 	}
 
     init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, U.T == T {
-        let (str, vals) = rule.query
-        self._query = "\(Element.key(for: path).stringValue) \(str)"
-        self.bindings = vals
+//        let (str, vals) = rule.query
+//        self._query = "\(Element.key(for: path).stringValue) \(str)"
+		self._query = AnyRule(column: Element.key(for: path).stringValue, rule: rule)
+//		self.bindings = rule.query.1
         self.limit = nil
         self.sort = nil
     }
 
     public init() {
-        self._query = ""
-        self.bindings = []
+//        self._query = ""
+//        self.bindings = []
         self.limit = nil
         self.sort = nil
     }
 
     // MARK: - Helper Methods
-    private func join(_ other: Filter, with conjunction: String, usingParentheses: Bool) -> Filter {
+    private func join(_ other: Filter, with method: JoinMethod, usingParentheses: Bool) -> Filter {
         var copy = self
-
-        if _query.isEmpty {
-            // don't include self._query if there's nothing to add,
-            // but use parentheses just to be extra safe
-            copy._query = other._query
+		
+		if _query == nil {
+			copy._query = other._query
         }
         else {
-            if usingParentheses {
-                copy._query = "(" + _query + ") \(conjunction) (" + other._query + ")"
-            }
-            else {
-                copy._query = _query + " \(conjunction) " + other._query
-            }
+			let parts = [_query, other._query].compactMap { $0 }.map { (method, $0) }
+			copy._query = Compound(parts: parts, usesParenthesis: usingParentheses)
         }
-
-        copy.bindings += other.bindings
 
         if let sort = other.sort {
 			// if there's a more recent `sort`,
@@ -102,29 +205,28 @@ public struct Filter<Element> where Element: Filterable {
     }
 
 	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
-        return join(Filter(path: path, rule: rule), with: "AND", usingParentheses: false)
+		return join(Filter(path: path, rule: rule), with: .and, usingParentheses: false)
 	}
 
 	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
 
-        return join(Filter(path: path, rule: rule), with: "OR", usingParentheses: false)
+		return join(Filter(path: path, rule: rule), with: .or, usingParentheses: false)
 	}
 
     // MARK: - Public Methods
 
     public func and(_ filter: Filter) -> Filter {
-        return join(filter, with: "AND", usingParentheses: true)
+		return join(filter, with: .and, usingParentheses: true)
     }
 
     public func or(_ filter: Filter) -> Filter {
-
-        return join(filter, with: "OR", usingParentheses: true)
+		return join(filter, with: .or, usingParentheses: true)
     }
 
-	public func sorting<T>(by path: KeyPath<Element, T>, ascending: Bool = true) -> Filter where T: Bindable & Comparable {
+	public func sorting<T>(by path: KeyPath<Element, T>, direction: SortRule<Element>.Direction = .ascending) -> Filter where T: Bindable & Comparable {
 
 		var copy = self
-        copy.sort = self.sort?.then(path, ascending: ascending) ?? SortRule(path, ascending: ascending)
+        copy.sort = self.sort?.then(path, direction: direction) ?? SortRule(path, direction: direction)
 		return copy
 	}
 
@@ -141,7 +243,7 @@ extension Filter: CustomStringConvertible {
         return """
         Filter<\(Element.self)>
             - Query: "\(query)"
-            - Binding Values: \(bindings)
+            - Binding Values: \(_query?.bindings ?? [])
         """
     }
 }

@@ -54,8 +54,8 @@ final class CodableDataTests: XCTestCase {
 	func testSorting() {
 		let filter = Filter<Name>()
 			.sorting(by: \.age)
-			.sorting(by: \.first, ascending: true)
-			.sorting(by: \.last, ascending: false)
+			.sorting(by: \.first, direction: .ascending)
+			.sorting(by: \.last, direction: .descending)
 		
 		XCTAssertEqual(filter.query, "ORDER BY age ASC, first ASC, last DESC")
 	}

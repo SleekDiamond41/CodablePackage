@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import  SQLite3
+import SQLite3
 
 struct Statement {
 	let query: String
@@ -18,13 +18,33 @@ struct Statement {
 	}
 }
 
+public enum SqliteError: Error {
+	case unknown(String)
+}
+
+enum PreparationError: Error {
+	case noSuchColumn(String)
+	case syntax(String, query: String)
+}
+
+fileprivate func nativeError(from sqliteError: String, query: String) -> Error {
+	if let range = sqliteError.range(of: "no such column: ") {
+		return PreparationError.noSuchColumn(String(sqliteError[range.upperBound...]))
+	}
+	if let range = sqliteError.range(of: ": syntax error") {
+		return PreparationError.syntax(String(sqliteError[..<range.lowerBound]), query: query)
+	}
+	return SqliteError.unknown(sqliteError)
+}
+
 extension Statement {
 
 	mutating func prepare(in db: OpaquePointer) throws {
 		let status = Status(sqlite3_prepare(db, query, -1, &p, nil))
 		guard status == .ok else {
+			print(status)
 			let mess = String(cString: sqlite3_errmsg(db))
-			fatalError(String(reflecting: mess))
+			throw nativeError(from: mess, query: query)
 		}
 	}
 

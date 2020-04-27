@@ -8,27 +8,40 @@
 
 import Foundation
 
-fileprivate func string<Element, T>(path: KeyPath<Element, T>, ascending: Bool) -> String where Element: Filterable, T: Bindable & Comparable {
-	return "\(Element.key(for: path).stringValue) \(ascending ? "ASC" : "DESC")"
-}
-
 
 public struct SortRule<Element: Filterable> {
 	
+	public enum Direction {
+		case ascending, descending
+	}
+	
+	private struct Sort {
+		let column: String
+		let direction: Direction
+		
+		var query: String {
+			return column + " " + (direction == .ascending ? "ASC" : "DESC")
+		}
+	}
+	
 	var query: String {
-		return "ORDER BY " + parts.joined(separator: ", ")
+		return "ORDER BY " + sorts.map { $0.query }.joined(separator: ", ")
 	}
-	private let parts: [String]
+	private var sorts: [Sort]
 	
-	init(parts: [String]) {
-		self.parts = parts
-	}
-	
-	public init<T>(_ path: KeyPath<Element, T>, ascending: Bool = true) where T: Bindable & Comparable {
-		self.parts = [string(path: path, ascending: ascending)]
+	private init(sorts: [Sort]) {
+		self.sorts = sorts
 	}
 	
-	public func then<T>(_ path: KeyPath<Element, T>, ascending: Bool = true) -> SortRule where T: Bindable & Comparable {
-		return SortRule(parts: parts + [string(path: path, ascending: ascending)])
+	public init<T>(_ path: KeyPath<Element, T>, direction: Direction = .ascending) where T: Bindable & Comparable {
+		self.sorts = [Sort(column: Element.key(for: path).stringValue, direction: direction)]
+	}
+	
+	public func then<T>(_ path: KeyPath<Element, T>, direction: Direction = .ascending) -> SortRule where T: Bindable & Comparable {
+		return SortRule(sorts: sorts + [Sort(column: Element.key(for: path).stringValue, direction: direction)])
+	}
+	
+	mutating func remove(column: String) {
+		sorts.removeAll { $0.column == column }
 	}
 }
