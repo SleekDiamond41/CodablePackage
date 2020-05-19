@@ -70,6 +70,7 @@ extension Database {
 				
 				switch error {
 				case let .noSuchColumn(col):
+					// TODO: instead of looping to remove values, throw an error
 					copy.remove(column: col)
 				case let .syntax(message, query: query):
 					preconditionFailure("\(message): \(query)")
