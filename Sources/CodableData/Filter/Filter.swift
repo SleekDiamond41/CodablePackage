@@ -39,7 +39,7 @@ struct AnyRule: _Query {
 		let stuff = rule.query
 		
 		self.bindings = stuff.1
-		self.query = "\(column) \(stuff.0)"
+		self.query = "\(column.sqlFormatted()) \(stuff.0)"
 	}
 	
 	mutating func remove(column: String) {
@@ -108,7 +108,7 @@ public struct Filter<Element> where Element: Filterable {
 	var query: String {
 		
 		return [
-			(_query?.query as Optional<String>).map { !$0.isEmpty ? "WHERE " + $0 : "" },
+			_query.map { !$0.query.isEmpty ? "WHERE " + $0.query : "" },
 			sort?.query,
 			limit?.query,
 		]

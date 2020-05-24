@@ -37,11 +37,11 @@ class Writer<T: Model & Encodable> {
 	}
 	
 	func tableDefinition() -> Table {
-		return Table(name: T.tableName, columns:
-			writer.values.map {
-				Table.Column(name: $0.0, type: $0.1.bindingValue)
-			}
-		)
+		let name = T.tableName
+		let columns = writer.values
+			.map { Table.Column(name: $0.0, type: $0.1.bindingValue) }
+		
+		return Table(name: name, columns: columns)
 	}
 	
 	func replace(_ value: T, into table: inout Table, connection: Connection, newColumnsHandler: ([Table.Column]) throws -> Void) rethrows {
@@ -52,10 +52,10 @@ class Writer<T: Model & Encodable> {
 				Table.Column(name: $0.0, type: $0.1.bindingValue)
 			})
 		
-		let keys = writer.values.map { $0.0 }.joined(separator: ", ")
+		let keys = writer.values.map { $0.0.sqlFormatted() }.joined(separator: ", ")
 		let values = [String](repeating: "?", count: writer.values.count).joined(separator: ", ")
 		
-		var s = Statement("REPLACE INTO \(table.name) (\(keys)) VALUES (\(values))")
+		var s = Statement("REPLACE INTO \(Table.name(table.name)) (\(keys)) VALUES (\(values))")
 
         //TODO: refactor so this can actually throw if needed
         try! s.prepare(in: connection.db)

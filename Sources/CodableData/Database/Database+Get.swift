@@ -23,7 +23,7 @@ extension Database {
 			q = ""
 		}
 		
-		var s = Statement("SELECT * FROM \(table.name)" + q + ";")
+		var s = Statement("SELECT * FROM \(table.name.sqlFormatted())" + q + ";")
 
 		try s.prepare(in: connection.db)
 		defer {
@@ -55,26 +55,17 @@ extension Database {
 			return []
 		}
 		
-		for _ in t.columns.indices {
+		for _ in 0..<t.columns.count {
+			//
 			// better than a while true loop... right?
 			
 			do {
 				return try get(Element.self, query: copy.query, bindings: copy.bindings)
-				
-			} catch let error as PreparationError {
-				if !copy.usesColumns {
-					// if we've queried until there was nothing left,
-					// move on with your day
+			} catch PreparationError.noSuchColumn(let column) {
+				guard copy.usesColumns else {
 					break
 				}
-				
-				switch error {
-				case let .noSuchColumn(col):
-					// TODO: instead of looping to remove values, throw an error
-					copy.remove(column: col)
-				case let .syntax(message, query: query):
-					preconditionFailure("\(message): \(query)")
-				}
+				copy.remove(column: column)
 			}
 		}
 		return []

@@ -11,7 +11,8 @@ import Foundation
 
 public protocol Model {
 	associatedtype PrimaryKey: Equatable & Bindable
-	var id: PrimaryKey { get }
+	
+	static var idKey: KeyPath<Self, PrimaryKey> { get }
 	
 	
 	/// The name of the table to which this object should be saved.
@@ -39,7 +40,7 @@ extension Model {
 }
 
 public protocol UUIDModel: Model where PrimaryKey == UUID {
-	var id: UUID { get }
+//	static var idKey: KeyPath<Self, PrimaryKey> { get }
 }
 
 //TODO: implement using row ids instead of UUIDs
@@ -52,6 +53,8 @@ protocol RowModel: Model where PrimaryKey == Int64? {
 
 struct Paper: Codable, UUIDModel {
 	let id: UUID
+	
+	static var idKey = \Paper.id
 }
 
 extension Paper: Filterable {

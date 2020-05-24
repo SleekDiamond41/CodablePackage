@@ -23,7 +23,7 @@ extension Database {
             q += " " + filter.query
         }
 
-        var s = Statement("SELECT COUNT(*) FROM \(table.name)" + q + ";")
+		var s = Statement("SELECT COUNT(*) FROM \(table.name.sqlFormatted())" + q + ";")
 
         try s.prepare(in: connection.db)
         defer {

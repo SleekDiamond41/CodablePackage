@@ -13,6 +13,8 @@ enum KVStorage {
 		let id: UUID
 		let key: String
 		
+		static var idKey = \Key.id
+		
 		enum CodingKeys: String, CodingKey {
 			case id
 			case key
@@ -33,6 +35,8 @@ enum KVStorage {
 	struct Value: UUIDModel, Codable, Filterable {
 		let id: UUID
 		let value: String
+		
+		static var idKey = \Value.id
 		
 		enum CodingKeys: String, CodingKey {
 			case id

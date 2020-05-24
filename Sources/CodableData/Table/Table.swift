@@ -19,6 +19,8 @@ struct Table {
 	}
 	
 	func query(for action: Action) -> String {
+		let name = self.name.sqlFormatted()
+		
 		switch action {
 		case .create:
 			let c = columns.map { $0.query }.joined(separator: ", ")
@@ -32,7 +34,7 @@ struct Table {
 	}
 	
 	init(name: String, columns: [Column]) {
-		self.name = Table.name(name)
+		self.name = name
 		self.columns = columns
 	}
 	
@@ -60,7 +62,7 @@ struct Table {
 		}
 		
 		fileprivate var query: String {
-			return name + " " + type.rawValue + (isPrimaryKey ? " PRIMARY KEY NOT NULL" : "")
+			return name.sqlFormatted() + " " + type.rawValue + (isPrimaryKey ? " PRIMARY KEY NOT NULL" : "")
 		}
 	}
 }
@@ -68,7 +70,7 @@ struct Table {
 
 extension String {
 	
-	fileprivate func sqlFormatted() -> String {
+	func sqlFormatted() -> String {
 		var result = self
 		
 		// Playgrounds use this prefix followed by some numbers then "." THEN the object name. Remove prefix so tables will be named consistently across multiple executions
@@ -94,7 +96,10 @@ extension String {
 			result.removeLast()
 		}
 		
-		// convert existing double quotes to single quotes, surround the whole thing with double quotes so SQLite will
+		// convert existing double quotes to single quotes,
+		// surround the whole thing with double quotes so SQLite will like it better
+		// also should help defend against SQL injection, although that's
+		// really not a goal of this project
 		return "\"" + result.replacingOccurrences(of: "\"", with: "'") + "\""
 		
 	}

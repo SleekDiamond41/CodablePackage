@@ -18,7 +18,7 @@ extension Database {
             s.finalize()
         }
 
-        try value.id.bindingValue.bind(into: s, at: 1)
+		try value[keyPath: T.idKey].bindingValue.bind(into: s, at: 1)
         s.step()
 	}
 }

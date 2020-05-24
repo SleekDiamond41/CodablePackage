@@ -23,11 +23,15 @@ public enum SqliteError: Error {
 }
 
 enum PreparationError: Error {
+	case noSuchTable(String)
 	case noSuchColumn(String)
 	case syntax(String, query: String)
 }
 
 fileprivate func nativeError(from sqliteError: String, query: String) -> Error {
+	if let range = sqliteError.range(of: "no such table: ") {
+		return PreparationError.noSuchTable(String(sqliteError[range.upperBound...]))
+	}
 	if let range = sqliteError.range(of: "no such column: ") {
 		return PreparationError.noSuchColumn(String(sqliteError[range.upperBound...]))
 	}

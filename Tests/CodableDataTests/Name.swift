@@ -14,6 +14,8 @@ struct Name: UUIDModel, Codable, Filterable {
     var first: String
     var last: String
     var age: Int = 0
+	
+	static var idKey = \Name.id
 
     enum CodingKeys: String, CodingKey {
         case id

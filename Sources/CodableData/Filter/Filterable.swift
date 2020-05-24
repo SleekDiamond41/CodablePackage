@@ -14,16 +14,3 @@ public protocol Filterable {
 	
 	static func key<T: Bindable>(for path: KeyPath<Self, T>) -> FilterKey
 }
-
-extension Person {
-	
-	static func key<T: Bindable>(for path: KeyPath<Person, T>) -> Person.CodingKeys {
-		switch path {
-		case \Person.id: return .id
-		case \Person.name: return .name
-		default:
-			fatalError("Unknown KeyPath")
-		}
-	}
-	
-}

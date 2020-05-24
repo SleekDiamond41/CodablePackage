@@ -18,16 +18,21 @@ extension KeyedDecodingContainer {
 }
 
 
-fileprivate struct Person: UUIDModel, Codable {
+struct User: UUIDModel, Codable {
+	
+	static var idKey: KeyPath<User, UUID> = \User.id
+	
+	
 	private(set) var id = UUID()
 	
 	var firstName = ""
 	var age = 0
 	var noColumn: Int?
 	
-	init(id: UUID, firstName: String, age: Int? = nil) {
+	init(id: UUID, firstName: String, age: Int = 0) {
 		self.id = id
 		self.firstName = firstName
+		self.age = age
 	}
 	
 	init(from decoder: Decoder) throws {
@@ -50,17 +55,17 @@ fileprivate struct Person: UUIDModel, Codable {
 	}
 }
 
-extension Person: Filterable {
+extension User: Filterable {
 	
-	static func key<T>(for path: KeyPath<Person, T>) -> CodingKeys where T : Bindable {
+	static func key<T>(for path: KeyPath<User, T>) -> CodingKeys where T : Bindable {
 		switch path {
-		case \Person.id:
+		case \User.id:
 			return .id
-		case \Person.firstName:
+		case \User.firstName:
 			return .firstName
-		case \Person.age:
+		case \User.age:
 			return .age
-		case \Person.noColumn:
+		case \User.noColumn:
 			return .noColumn
 		default:
 			preconditionFailure("unrecognized KeyPath")
@@ -87,7 +92,7 @@ class ReaderTests: XCTestCase {
 	}
 	
 	func test_readTypeThatDoesntExist() {
-		let filter = Filter<Person>()
+		let filter = Filter<User>()
 		
 		XCTAssertNoThrow(try db.get(with: filter))
 		XCTAssertNoThrow(try db.count(with: filter))
@@ -100,39 +105,27 @@ class ReaderTests: XCTestCase {
 		
 		print(db.dir)
 		
-		let person = Person(id: UUID(uuidString: "E621E9F8-C36C-495A-93FC-0C247C3E6E5A")!, firstName: "Johnny")
+		let user = User(id: UUID(uuidString: "E621E9F8-C36C-495A-93FC-0C247C3E6E5A")!, firstName: "Johnny")
 		
-		try! db.save(person)
+		try! db.save(user)
 		
-		let filter = Filter<Person>()
+		let filter = Filter<User>()
 		
 		// FIXME: update this test to reflect desired behavior:
 		// if a query includes references to a column that doesn't exist
 		// it should not throw an error.
 		// If the database tries to read a value from a column that doesn't exist,
 		// an error should be thrown (ReaderError.noSuchColumn(String))
-		XCTAssertNoThrow(try db.get(with: Filter<Person>()))
-		
-//		XCTAssertThrowsError(try db.get(with: Filter<Person>(\.noColumn, is: .equal(to: 0))), "expected an error to be thrown") { (error) in
-//			guard let readerError = error as? ReaderError else {
-//				XCTFail("unexpected error: \(error)")
-//				return
-//			}
-//			
-//			switch readerError {
-//			case .noSuchColumn(let column):
-//				XCTAssertEqual(column, Person.CodingKeys.noColumn.stringValue)
-//			}
-//		}
+		XCTAssertNoThrow(try db.get(with: Filter<User>()))
 		
 		do {
 			let models = try db.get(with: filter)
 			
 			XCTAssertEqual(models.count, 1)
-			XCTAssertEqual(models.first?.id, person.id)
-			XCTAssertEqual(models.first?.firstName, person.firstName)
-			XCTAssertEqual(models.first?.age, person.age)
-			XCTAssertEqual(models.first?.noColumn, person.noColumn)
+			XCTAssertEqual(models.first?.id, user.id)
+			XCTAssertEqual(models.first?.firstName, user.firstName)
+			XCTAssertEqual(models.first?.age, user.age)
+			XCTAssertEqual(models.first?.noColumn, user.noColumn)
 			
 		} catch let error as PreparationError {
 			print(error)

@@ -10,41 +10,6 @@ import Foundation
 import SQLite3
 
 
-struct Person: Model, Equatable {
-	let id: UUID
-	let name: String
-	let nickName: String?
-	
-	init(id: UUID, name: String, nickName: String? = nil) {
-		self.id = id
-		self.name = name
-		self.nickName = nickName
-	}
-	
-	enum CodingKeys: String, CodingKey {
-		case id
-		case name
-		case nickName = "nick_name"
-	}
-	
-	init(from decoder: Decoder) throws {
-		let container = try decoder.container(keyedBy: CodingKeys.self)
-		
-		self.id = try container.decode(UUID.self, forKey: .id)
-		self.name = try container.decode(String.self, forKey: .name)
-		self.nickName = try container.decode(String?.self, forKey: .nickName)
-	}
-	
-	func encode(to encoder: Encoder) throws {
-		var container = encoder.container(keyedBy: CodingKeys.self)
-		
-		try container.encode(id, forKey: .id)
-		try container.encode(name, forKey: .name)
-		try container.encode(nickName, forKey: .nickName)
-	}
-}
-
-
 enum ReaderError: Error {
 	case noSuchColumn(String)
 }

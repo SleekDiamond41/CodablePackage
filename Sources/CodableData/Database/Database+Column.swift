@@ -19,7 +19,7 @@ extension Database {
         execute(table.query(for: .addColumn(column)))
 
         do {
-            table = try self.table(table.name.replacingOccurrences(of: "\"", with: ""))!
+            table = try self.table(table.name)!
         } catch {
             throw TableError.failedToAdd(column: column, table: table)
         }

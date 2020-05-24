@@ -16,18 +16,18 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.bindings.count, 0)
 
         filter = filter.and(\.age, is: .greater(than: 18))
-        XCTAssertEqual(filter.query, "WHERE age > ?")
+        XCTAssertEqual(filter.query, "WHERE \"age\" > ?")
         XCTAssertEqual(filter.bindings.count, 1)
 
         filter = filter.and(\.age, is: .less(than: 30))
-        XCTAssertEqual(filter.query, "WHERE age > ? AND age < ?")
+        XCTAssertEqual(filter.query, "WHERE \"age\" > ? AND \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
         let other = Filter<Name>(\.first, is: .matches("Arrington"))
             .and(\.last, is: .regex("example"))
 
         filter = filter.and(other)
-        XCTAssertEqual(filter.query, "WHERE (age > ? AND age < ?) AND (first MATCH ? AND last REGEXP ?)")
+        XCTAssertEqual(filter.query, "WHERE (\"age\" > ? AND \"age\" < ?) AND (\"first\" MATCH ? AND \"last\" REGEXP ?)")
         XCTAssertEqual(filter.bindings.count, 4)
     }
 
@@ -37,18 +37,18 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.bindings.count, 0)
 
         filter = filter.or(\.age, is: .greater(than: 18))
-        XCTAssertEqual(filter.query, "WHERE age > ?")
+        XCTAssertEqual(filter.query, "WHERE \"age\" > ?")
         XCTAssertEqual(filter.bindings.count, 1)
 
         filter = filter.or(\.age, is: .less(than: 30))
-        XCTAssertEqual(filter.query, "WHERE age > ? OR age < ?")
+        XCTAssertEqual(filter.query, "WHERE \"age\" > ? OR \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
         let other = Filter<Name>(\.first, is: .matches("Arrington"))
             .or(\.last, is: .regex("example"))
 
         filter = filter.or(other)
-        XCTAssertEqual(filter.query, "WHERE (age > ? OR age < ?) OR (first MATCH ? OR last REGEXP ?)")
+        XCTAssertEqual(filter.query, "WHERE (\"age\" > ? OR \"age\" < ?) OR (\"first\" MATCH ? OR \"last\" REGEXP ?)")
         XCTAssertEqual(filter.bindings.count, 4)
     }
 
@@ -67,7 +67,7 @@ class FilterTests: XCTestCase {
 
         XCTAssertEqual(filter.description, """
         Filter<Name>
-            - Query: "WHERE ((last NOT LIKE ?) OR (age > ? AND first LIKE ?) AND age < ?) OR (age < ?)"
+            - Query: "WHERE (("last" NOT LIKE ?) OR ("age" > ? AND "first" LIKE ?) AND "age" < ?) OR ("age" < ?)"
             - Binding Values: ["Arrington", 20, "Michael", 40, 40]
         """)
     }
