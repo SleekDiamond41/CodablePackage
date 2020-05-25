@@ -1,6 +1,7 @@
 import XCTest
 @testable import CodableData
 
+
 final class CodableDataTests: XCTestCase {
 	
 	var db: Database!
@@ -72,4 +73,42 @@ final class CodableDataTests: XCTestCase {
 		
 		XCTAssertNoThrow(try db.deleteTheWholeDangDatabase())
     }
+	
+	func test_savingUnicodeCharacters() {
+		
+		let unicodeCharacters = "😳😳😬"
+		let model = Name(id: UUID(), first: unicodeCharacters, last: "")
+		
+		XCTAssertNoThrow(try db.save(model))
+		
+		let filter = Filter<Name>()
+			.limit(1)
+		
+		XCTAssertNoThrow(try db.get(with: filter))
+		
+		guard let match = try! db.get(with: filter).first else {
+			XCTFail()
+			return
+		}
+		
+		XCTAssertEqual(match.first, unicodeCharacters)
+	}
+	
+	func test_keyValueStorage() {
+		let key = "myKey"
+		let value = 173813.5345
+		
+		let storage = db.keyValueStorage()
+		
+		storage.store(value, for: key)
+		XCTAssertEqual(storage.value(for: key), value)
+		
+		
+		storage.removeValue(for: key)
+		
+		// it doesn't matter what we cast to if the value doesn't exist,
+		// so just always use Bool (arbitrary choice) even if you
+		// change the actual value stored in 'value'
+		XCTAssertEqual(storage.value(for: key) as Bool?, nil)
+	}
 }

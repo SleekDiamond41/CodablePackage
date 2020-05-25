@@ -8,121 +8,91 @@
 
 import Foundation
 
-enum KVStorage {
-	struct Key: UUIDModel, Codable, Filterable {
-		let id: UUID
-		let key: String
+extension Database {
+	
+	public func keyValueStorage() -> KeyValueStorage {
+		return KeyValueStorage(self)
+	}
+}
+
+
+// MARK: - KeyValueStorage
+public final class KeyValueStorage {
+	private let db: Database
+	
+	init(_ db: Database) {
+		self.db = db
+	}
+	
+	public func store<T>(_ value: T, for key: String) where T: Encodable {
 		
-		static var idKey = \Key.id
-		
-		enum CodingKeys: String, CodingKey {
-			case id
-			case key
-		}
-		
-		static func key<T>(for path: KeyPath<KVStorage.Key, T>) -> CodingKeys where T : Bindable {
-			switch path {
-			case \Key.id:
-				return .id
-			case \Key.key:
-				return .key
-			default:
-				fatalError()
-			}
+		do {
+			let data = try JSONEncoder().encode(value)
+			let pair = KeyValue(id: key, data: data)
+			try db.save(pair)
+			
+		} catch {
+			preconditionFailure(String(describing: error))
 		}
 	}
 	
-	struct Value: UUIDModel, Codable, Filterable {
-		let id: UUID
-		let value: String
-		
-		static var idKey = \Value.id
-		
-		enum CodingKeys: String, CodingKey {
-			case id
-			case value
-		}
-		
-		static func key<T>(for path: KeyPath<KVStorage.Value, T>) -> CodingKeys where T : Bindable {
-			switch path {
-			case \Value.id:
-				return .id
-			case \Value.value:
-				return .value
-			default:
-				fatalError()
+	public func value<T>(for key: String) -> T? where T: Decodable {
+		do {
+			let filter = Filter<KeyValue>(\.id, is: .like(key))
+				.limit(1)
+			
+			guard let pair = try db.get(with: filter).first else {
+				return nil
 			}
+			
+			return try JSONDecoder().decode(T.self, from: pair.data)
+			
+		} catch {
+			assertionFailure(String(describing: error))
+			return nil
+		}
+	}
+	
+	public func removeValue(for key: String) {
+		let filter = Filter<KeyValue>(\.id, is: .like(key))
+			.limit(1)
+		
+		do {
+			guard let existing = try db.get(with: filter).first else {
+				return
+			}
+			
+			try db.delete(existing)
+		} catch {
+			assertionFailure(String(describing: error))
 		}
 	}
 }
 
-extension Database {
+
+// MARK: - KeyValue
+private struct KeyValue: Model, Codable, Filterable {
 	
-//	static func store<T>(db: OpaquePointer, _ k: String, _ v: T) where T: Codable {
-//		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
-//
-//		let key: KVStorage.Key
-//
-//
-//		if let existing = get(filter: filter).first {
-//			key = existing
-//		} else {
-//			key = KVStorage.Key(id: UUID(), key: k)
-//		}
-//
-//		let data = try! JSONEncoder().encode(v)
-//		guard let str = String(data: data, encoding: .utf8) else {
-//			fatalError()
-//		}
-//
-//		let value = KVStorage.Value(id: key.id, value: str)
-//
-//		replace(db: db, key)
-//		replace(db: db, value)
-//	}
-//
-//	public func store<T>(key: String, value: T) where T: Codable {
-//		sync {
-//			Database.store(db: $0, key, value)
-//		}
-//	}
-//
-//	public func store<T>(key: String, value: T, _ handler: @escaping () -> Void) where T: Codable {
-//		async {
-//			Database.store(db: $0, key, value)
-//			handler()
-//		}
-//	}
-//
-//	static func value<T>(db: OpaquePointer, k: String) -> T? where T: Decodable {
-//		let filter = Filter<KVStorage.Key>(\.key, is: .equal(to: k)).limit(1)
-//
-//		guard let key = get(db, filter: filter).first else {
-//			return nil
-//		}
-//		guard let value = get(db, KVStorage.Value.self, id: key.id) else {
-//			return nil
-//		}
-//		guard let data = value.value.data(using: .utf8) else {
-//			return nil
-//		}
-//
-//		do {
-//			return try JSONDecoder().decode(T.self, from: data)
-//		} catch {
-//			return nil
-//		}
-//	}
-//
-//	public func value<T>(for key: String) -> T? where T: Decodable {
-//		return sync {
-//			return Database.value(db: $0, k: key)
-//		}
-//	}
-//
-//	public func value<T>(for key: String, _ handler: @escaping (T?) -> Void) where T: Decodable {
-//		async {
-//			handler(Database.value(db: $0, k: key))
-//		}
-//	}
+	static let idKey = \KeyValue.id
+	static let tableName = "__Key_Value_Storage__"
+	
+	let id: String
+	let data: Data
+	
+	
+	enum CodingKeys: String, CodingKey {
+		case id
+		case data
+	}
+	
+	static func key<T>(for path: KeyPath<KeyValue, T>) -> CodingKeys where T : Bindable {
+		switch path {
+		case KeyValue.idKey:
+			return .id
+		case \KeyValue.data:
+			return .data
+		default:
+			preconditionFailure("Unknown KeyPath!")
+		}
+	}
 }
