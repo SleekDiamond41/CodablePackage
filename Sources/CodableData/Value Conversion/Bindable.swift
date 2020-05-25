@@ -162,6 +162,7 @@ extension Data: Bindable {
 
 extension Date: Bindable {
 	public var bindingValue: SQLValue {
+		// FIXME: using Doubles for storage means Dates lose precision
 		return .double(timeIntervalSince1970)
 	}
 }
