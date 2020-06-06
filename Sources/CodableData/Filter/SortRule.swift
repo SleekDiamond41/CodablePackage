@@ -9,13 +9,13 @@
 import Foundation
 
 
-public struct SortRule<Element: Filterable> {
+public struct SortRule<Element: Filterable>: Codable, Equatable {
 	
-	public enum Direction {
+	public enum Direction: String, Codable {
 		case ascending, descending
 	}
 	
-	private struct Sort {
+	private struct Sort: Codable, Equatable {
 		let column: String
 		let direction: Direction
 		

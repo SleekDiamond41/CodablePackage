@@ -11,12 +11,69 @@ import SQLite3
 
 
 /// A value that can be bound into a SQLite statement
-public enum SQLValue {
+public enum SQLValue: Codable, Equatable {
 	case text(String)
 	case integer(Int64)
 	case double(Double)
 	case blob(Data)
 	case null
+	
+	private enum CodingKeys: String, CodingKey {
+		case type
+		case value
+		
+		enum Types: String, Codable {
+			case text
+			case integer
+			case double
+			case blob
+			case null
+		}
+	}
+	
+	
+	public init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		
+		let type = try container.decode(CodingKeys.Types.self, forKey: .type)
+		
+		switch type {
+		case .text:
+			self = .text(try container.decode(String.self, forKey: .value))
+		case .integer:
+			self = .integer(try container.decode(Int64.self, forKey: .value))
+		case .double:
+			self = .double(try container.decode(Double.self, forKey: .value))
+		case .blob:
+			self = .blob(try container.decode(Data.self, forKey: .value))
+		case .null:
+			// no value to decode here
+			self = .null
+		}
+	}
+	
+	public func encode(to encoder: Encoder) throws {
+		var container = encoder.container(keyedBy: CodingKeys.self)
+		
+		switch self {
+		case .text(let value):
+			try container.encode(CodingKeys.Types.text, forKey: .type)
+			try container.encode(value, forKey: .value)
+		case .integer(let value):
+			try container.encode(CodingKeys.Types.integer, forKey: .type)
+			try container.encode(value, forKey: .value)
+		case .double(let value):
+			try container.encode(CodingKeys.Types.double, forKey: .type)
+			try container.encode(value, forKey: .value)
+		case .blob(let value):
+			try container.encode(CodingKeys.Types.blob, forKey: .type)
+			try container.encode(value, forKey: .value)
+		case .null:
+			try container.encode(CodingKeys.Types.null, forKey: .type)
+			// no value to encode here
+		}
+	}
+	
 	
 	func bind(into s: Statement, at index: Int32) throws {
 		switch self {

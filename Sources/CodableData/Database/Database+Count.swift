@@ -32,7 +32,7 @@ extension Database {
 
         var i: Int32 = 1
         for b in filter.bindings {
-            try b.bindingValue.bind(into: s, at: i)
+            try b.bind(into: s, at: i)
             i += 1
         }
 

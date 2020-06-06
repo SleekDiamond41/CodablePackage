@@ -71,4 +71,22 @@ class FilterTests: XCTestCase {
             - Binding Values: ["Arrington", 20, "Michael", 40, 40]
         """)
     }
+	
+	func testDecodingEncoding() {
+		let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
+			.or(Filter(\.age, is: .greater(than: 20))
+				.and(\.first, is: .like("Michael")))
+			.and(\.age, is: .less(than: 40))
+			.or(Filter(\.age, is: .less(than: 40)))
+		
+		do {
+			let data = try JSONEncoder().encode(filter)
+			let result = try JSONDecoder().decode(Filter<Name>.self, from: data)
+			
+			XCTAssertEqual(result, filter)
+			XCTAssertEqual(result.description, filter.description)
+		} catch {
+			
+		}
+	}
 }

@@ -11,7 +11,7 @@ import Foundation
 
 extension Database {
 	
-	func get<Element>(_ : Element.Type, query: String, bindings: [Bindable]) throws -> [Element] where Element: Decodable & Model {
+	func get<Element>(_ : Element.Type, query: String, bindings: [SQLValue]) throws -> [Element] where Element: Decodable & Model {
         guard let table = try self.table(Element.tableName) else {
 			return []
 		}
@@ -32,7 +32,7 @@ extension Database {
 		
 		var i: Int32 = 1
 		for b in bindings {
-			try b.bindingValue.bind(into: s, at: i)
+			try b.bind(into: s, at: i)
 			i += 1
 		}
 		

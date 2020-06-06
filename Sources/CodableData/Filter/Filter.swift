@@ -14,31 +14,94 @@ protocol Rule {
 	var query: (String, [T]) { get }
 }
 
-enum JoinMethod: String {
+enum JoinMethod: String, Codable, Equatable {
 	case and = "AND"
 	case or = "OR"
 }
 
-protocol _Query {
-	var query: String { get }
-	var bindings: [Bindable] { get }
+
+enum Query: Codable, Equatable {
+	init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		
+		let type = try container.decode(CodingKeys.Types.self, forKey: .type)
+		
+		switch type {
+		case .anyRule:
+			self = .anyRule(try container.decode(AnyRule.self, forKey: .value))
+		case .compound:
+			self = .compound(try container.decode(Compound.self, forKey: .value))
+		}
+	}
 	
-	mutating func remove(column: String)
+	func encode(to encoder: Encoder) throws {
+		var container = encoder.container(keyedBy: CodingKeys.self)
+		
+		switch self {
+		case .anyRule(let rule):
+			try container.encode(CodingKeys.Types.anyRule, forKey: .type)
+			try container.encode(rule, forKey: .value)
+		case .compound(let compound):
+			try container.encode(CodingKeys.Types.compound, forKey: .type)
+			try container.encode(compound, forKey: .value)
+		}
+	}
+	
+	private enum CodingKeys: String, CodingKey {
+		case type
+		case value
+		
+		enum Types: String, Codable {
+			case anyRule
+			case compound
+		}
+	}
+	
+	case anyRule(AnyRule)
+	case compound(Compound)
+	
+	var query: String {
+		switch self {
+		case .anyRule(let rule):
+			return rule.query
+		case .compound(let compound):
+			return compound.query
+		}
+	}
+	
+	var bindings: [SQLValue] {
+		switch self {
+		case .anyRule(let rule):
+			return rule.bindings
+		case .compound(let compound):
+			return compound.bindings
+		}
+	}
+	
+	mutating func remove(column: String) {
+		switch self {
+		case .anyRule(var rule):
+			rule.remove(column: column)
+			self = .anyRule(rule)
+		case .compound(var compound):
+			compound.remove(column: column)
+			self = .compound(compound)
+		}
+	}
 }
 
-
-struct AnyRule: _Query {
+struct AnyRule: Codable, Equatable {
 	let column: String
 	
 	private(set) var query: String
-	private(set) var bindings: [Bindable]
+	private(set) var bindings: [SQLValue]
 	
 	init<R>(column: String, rule: R) where R: Rule {
 		self.column = column
 		
 		let stuff = rule.query
 		
-		self.bindings = stuff.1
+		self.bindings = stuff.1.map { $0.bindingValue }
 		self.query = "\(column.sqlFormatted()) \(stuff.0)"
 	}
 	
@@ -51,26 +114,26 @@ struct AnyRule: _Query {
 }
 
 
-struct Compound: _Query {
+struct Compound: Codable, Equatable {
 	
 	var query: String {
 		var results = [String]()
 		
 		for i in parts.indices {
-			guard !parts[i].1.query.isEmpty else {
+			guard !parts[i].query.query.isEmpty else {
 				continue
 			}
 			var s = ""
 			
 			if i > parts.startIndex {
-				s += " " + parts[i].0.rawValue + " "
+				s += " " + parts[i].method.rawValue + " "
 			}
 			
 			if usesParenthesis {
 				s += "("
 			}
 			
-			s += parts[i].1.query
+			s += parts[i].query.query
 			
 			if usesParenthesis {
 				s += ")"
@@ -86,16 +149,21 @@ struct Compound: _Query {
 		return results.joined()
 	}
 	
-	var bindings: [Bindable] {
-		return Array(parts.map { $0.1.bindings }.joined())
+	var bindings: [SQLValue] {
+		return Array(parts.map { $0.query.bindings }.joined())
 	}
 	
-	var parts = [(JoinMethod, _Query)]()
+	struct Part: Codable, Equatable {
+		let method: JoinMethod
+		var query: Query
+	}
+	
+	private(set) var parts = [Part]()
 	let usesParenthesis: Bool
 	
 	mutating func remove(column: String) {
 		for i in parts.indices {
-			parts[i].1.remove(column: column)
+			parts[i].query.remove(column: column)
 		}
 	}
 }
@@ -103,7 +171,7 @@ struct Compound: _Query {
 
 
 
-public struct Filter<Element> where Element: Filterable {
+public struct Filter<Element>: Codable, Equatable where Element: Filterable {
 
 	var query: String {
 		
@@ -129,16 +197,16 @@ public struct Filter<Element> where Element: Filterable {
 //		return result
 	}
 	
-	var bindings: [Bindable] { _query?.bindings ?? [] }
+	var bindings: [SQLValue] { _query?.bindings ?? [] }
 
-	private(set) var _query: _Query?
+	private(set) var _query: Query?
 	private var limit: Limit?
 	private var sort: SortRule<Element>?
 	
 	var usesColumns: Bool {
 		return [_query?.query, sort?.query]
 			.compactMap { $0 }
-			.reduce(false) { $0 || !$1.isEmpty }
+			.allSatisfy { !$0.isEmpty }
 	}
 	
 	mutating func remove(column: String) {
@@ -147,7 +215,7 @@ public struct Filter<Element> where Element: Filterable {
 	}
 
 
-	init(query: _Query?, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
+	init(query: Query?, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
 		self._query = query
 //		self.bindings = bindings
 		self.limit = limit
@@ -164,7 +232,8 @@ public struct Filter<Element> where Element: Filterable {
     init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, U.T == T {
 //        let (str, vals) = rule.query
 //        self._query = "\(Element.key(for: path).stringValue) \(str)"
-		self._query = AnyRule(column: Element.key(for: path).stringValue, rule: rule)
+		
+		self._query = .anyRule(AnyRule(column: Element.key(for: path).stringValue, rule: rule))
 //		self.bindings = rule.query.1
         self.limit = nil
         self.sort = nil
@@ -185,8 +254,11 @@ public struct Filter<Element> where Element: Filterable {
 			copy._query = other._query
         }
         else {
-			let parts = [_query, other._query].compactMap { $0 }.map { (method, $0) }
-			copy._query = Compound(parts: parts, usesParenthesis: usingParentheses)
+			let parts = [_query, other._query]
+				.compactMap { $0 }
+				.map { Compound.Part(method: method, query: $0) }
+			
+			copy._query = .compound(Compound(parts: parts, usesParenthesis: usingParentheses))
         }
 
         if let sort = other.sort {
@@ -230,7 +302,7 @@ public struct Filter<Element> where Element: Filterable {
 		return copy
 	}
 
-	public func limit(_ limit: Int, page: Int = 0) -> Filter {
+	public func limit(_ limit: UInt, page: UInt = 0) -> Filter {
 		var copy = self
 		copy.limit = Limit(limit, page)
 		return copy
@@ -240,10 +312,40 @@ public struct Filter<Element> where Element: Filterable {
 extension Filter: CustomStringConvertible {
 
     public var description: String {
+		
+		var valueString = "["
+		
+		let bindings = _query?.bindings ?? []
+		
+		if !bindings.isEmpty {
+			
+			for value in bindings {
+				switch value {
+				case .text(let s):
+					valueString.append("\"\(s)\"")
+				case .integer(let int):
+					valueString.append("\(int)")
+				case .double(let num):
+					valueString.append("\(num)")
+				case .blob(let data):
+					valueString.append(data.description)
+				case .null:
+					valueString.append("<NULL>")
+				}
+				
+				valueString.append(", ")
+			}
+			
+			// remove the dangling comma and space
+			valueString.removeLast(2)
+		}
+		
+		valueString += "]"
+		
         return """
         Filter<\(Element.self)>
             - Query: "\(query)"
-            - Binding Values: \(_query?.bindings ?? [])
+            - Binding Values: \(valueString)
         """
     }
 }

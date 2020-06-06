@@ -9,7 +9,7 @@
 import Foundation
 
 
-struct Limit {
+struct Limit: Codable, Equatable {
 	var query: String {
         // pages start at 0, negative values are a no-no
         let offset = max(0, page) * limit
@@ -23,10 +23,10 @@ struct Limit {
         return limitString
 	}
 	
-	let limit: Int
-	let page: Int
+	let limit: UInt
+	let page: UInt
 	
-	init(_ limit: Int, _ page: Int) {
+	init(_ limit: UInt, _ page: UInt) {
 		self.limit = limit
 		self.page = page
 	}
