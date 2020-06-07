@@ -9,7 +9,7 @@
 import Foundation
 import SQLite3
 
-struct Statement {
+public struct Statement {
 	let query: String
 	private(set) var p: OpaquePointer?
 
@@ -66,11 +66,42 @@ extension Statement {
 		assert(p != nil)
 		return Status(sqlite3_step(p))
 	}
-	
 }
 
 
 extension Statement {
+	
+	func bind(_ value: SQLValue, at index: Int32) throws {
+		switch value {
+		case .text(let str):
+			let status = Status(sqlite3_bind_text(p, index, NSString(string: str).utf8String, -1, nil))
+			guard status == .ok else {
+				fatalError(String(reflecting: status))
+			}
+		case .integer(let num):
+			let status = Status(sqlite3_bind_int64(p, index, num))
+			guard status == .ok else {
+				fatalError(String(reflecting: status))
+			}
+		case .double(let num):
+			let status = Status(sqlite3_bind_double(p, index, num))
+			guard status == .ok else {
+				fatalError(String(reflecting: status))
+			}
+		case .blob(let d):
+			let data = d as NSData
+			
+			let status = Status(sqlite3_bind_blob(p, index, data.bytes, Int32(data.length), nil))
+			guard status == .ok else {
+				fatalError(String(reflecting: self))
+			}
+		case .null:
+			let status = Status(sqlite3_bind_null(p, index))
+			guard status == .ok else {
+				fatalError(String(reflecting: status))
+			}
+		}
+	}
 	
 	func unbind<T: Unbindable>(_ : T.Type, for key: String, in table: Table) throws -> T {
 		guard let index = table.columns.firstIndex(where: { $0.name == key }) else {
@@ -78,5 +109,4 @@ extension Statement {
 		}
 		return try T.unbind(from: self, at: Int32(index))
 	}
-	
 }

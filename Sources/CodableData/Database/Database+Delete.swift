@@ -10,15 +10,23 @@ import Foundation
 
 
 extension Database {
-	public func delete<T>(_ value: T) throws where T: Model & Encodable {
-        var s = Statement("DELETE FROM \(Table.name(T.tableName)) WHERE id = ?")
-
+	
+	public func delete<T>(_ value: T) throws where T: Model & Encodable & Filterable {
+		let id = value[keyPath: T.idKey]
+		let filter = Filter(T.idKey, is: .equal(to: id))
+		
+		var s = Statement(.delete(filter))
+		
         try s.prepare(in: connection.db)
+		
         defer {
             s.finalize()
         }
-
-		try value[keyPath: T.idKey].bindingValue.bind(into: s, at: 1)
-        s.step()
+		
+		try s.bind(value[keyPath: T.idKey].bindingValue, at: 1)
+        
+		let status = s.step()
+		
+		assert(status == .ok || status == .done)
 	}
 }

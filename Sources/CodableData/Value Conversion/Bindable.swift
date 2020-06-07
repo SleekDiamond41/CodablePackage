@@ -73,39 +73,6 @@ public enum SQLValue: Codable, Equatable {
 			// no value to encode here
 		}
 	}
-	
-	
-	func bind(into s: Statement, at index: Int32) throws {
-		switch self {
-		case .text(let str):
-			let status = Status(sqlite3_bind_text(s.p, index, NSString(string: str).utf8String, -1, nil))
-			guard status == .ok else {
-				fatalError(String(reflecting: status))
-			}
-		case .integer(let num):
-			let status = Status(sqlite3_bind_int64(s.p, index, num))
-			guard status == .ok else {
-				fatalError(String(reflecting: status))
-			}
-		case .double(let num):
-			let status = Status(sqlite3_bind_double(s.p, index, num))
-			guard status == .ok else {
-				fatalError(String(reflecting: status))
-			}
-		case .blob(let d):
-			let data = d as NSData
-			
-			let status = Status(sqlite3_bind_blob(s.p, index, data.bytes, Int32(data.length), nil))
-			guard status == .ok else {
-				fatalError(String(reflecting: s))
-			}
-		case .null:
-			let status = Status(sqlite3_bind_null(s.p, index))
-			guard status == .ok else {
-				fatalError(String(reflecting: status))
-			}
-		}
-	}
 }
 
 

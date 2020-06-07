@@ -47,25 +47,24 @@ class Writer<T: Model & Encodable> {
 	func replace(_ value: T, into table: inout Table, connection: Connection, newColumnsHandler: ([Table.Column]) throws -> Void) rethrows {
 		
 		try newColumnsHandler(writer.values.filter { (val) in
-			return !table.columns.contains(where: { $0.name == val.0 })
+				return !table.columns.contains(where: { $0.name == val.0 })
 			}.map {
 				Table.Column(name: $0.0, type: $0.1.bindingValue)
 			})
 		
-		let keys = writer.values.map { $0.0.sqlFormatted() }.joined(separator: ", ")
-		let values = [String](repeating: "?", count: writer.values.count).joined(separator: ", ")
-		
-		var s = Statement("REPLACE INTO \(Table.name(table.name)) (\(keys)) VALUES (\(values))")
+		var s = Statement(.save(T.self, writer.values))
 
         //TODO: refactor so this can actually throw if needed
         try! s.prepare(in: connection.db)
+		
 		defer {
 			s.finalize()
 		}
+		
 		var i: Int32 = 1
 		for (_ , value) in writer.values {
             do {
-                try value.bindingValue.bind(into: s, at: i)
+				try s.bind(value.bindingValue, at: i)
             } catch {
                 preconditionFailure(String(reflecting: error))
             }

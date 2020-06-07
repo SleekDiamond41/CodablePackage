@@ -11,28 +11,22 @@ import Foundation
 
 extension Database {
 	
-	func get<Element>(_ : Element.Type, query: String, bindings: [SQLValue]) throws -> [Element] where Element: Decodable & Model {
+	private func _get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Decodable & Model {
         guard let table = try self.table(Element.tableName) else {
 			return []
 		}
 		
-		let q: String
-		if query.count > 0 {
-			q = " " + query
-		} else {
-			q = ""
-		}
+		var s = Statement(.get(filter))
 		
-		var s = Statement("SELECT * FROM \(table.name.sqlFormatted())" + q + ";")
-
 		try s.prepare(in: connection.db)
+		
 		defer {
 			s.finalize()
 		}
 		
 		var i: Int32 = 1
-		for b in bindings {
-			try b.bind(into: s, at: i)
+		for b in filter.bindings {
+			try s.bind(b, at: i)
 			i += 1
 		}
 		
@@ -45,6 +39,7 @@ extension Database {
 			results.append(try reader.read(Element.self, s: s, table))
 			status = s.step()
 		}
+		
 		return results
 	}
 	
@@ -60,7 +55,7 @@ extension Database {
 			// better than a while true loop... right?
 			
 			do {
-				return try get(Element.self, query: copy.query, bindings: copy.bindings)
+				return try _get(filter: copy)
 			} catch PreparationError.noSuchColumn(let column) {
 				guard copy.usesColumns else {
 					break

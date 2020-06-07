@@ -60,6 +60,45 @@ final class CodableDataTests: XCTestCase {
 		
 		XCTAssertEqual(filter.query, "ORDER BY age ASC, first ASC, last DESC")
 	}
+	
+	func testCount() {
+		XCTAssertEqual(try db.count(with: Filter<Name>()), 0)
+		
+		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
+
+		try! db.save(model)
+		
+		XCTAssertEqual(try db.count(with: Filter<Name>()), 1)
+	}
+	
+	func testDistinct() {
+		XCTAssertEqual(try db.distinct(\Name.age), [])
+		
+		let one = Name(id: UUID(), first: "Michael", last: "Arrington", age: 47)
+		let two = Name(id: UUID(), first: "Michael", last: "Arrington", age: 25)
+		
+		try! db.save(one)
+		try! db.save(two)
+		
+		XCTAssertEqual(try db.distinct(\Name.age), [47, 25])
+		XCTAssertEqual(try db.distinct(\Name.age, by: .ascending), [25, 47])
+		
+		let three = Name(id: UUID(), first: "Michael", last: "Arrington", age: 32)
+		
+		try! db.save(three)
+		
+		XCTAssertEqual(try db.distinct(\Name.age, by: .descending), [47, 32, 25])
+	}
+	
+	func testDistinctCount() {
+		XCTAssertEqual(try db.distinctCount(\Name.age), 0)
+		
+		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
+
+		try! db.save(model)
+		
+		XCTAssertEqual(try db.distinctCount(\Name.age), 1)
+	}
 
     func testDatabase() {
 		
