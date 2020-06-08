@@ -84,7 +84,6 @@ class ReaderTests: XCTestCase {
 	}
 	
 	override func tearDown() {
-		
 		try? db?.deleteWithoutReconnecting()
 		db = nil
 		

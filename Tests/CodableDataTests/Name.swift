@@ -8,7 +8,7 @@
 import Foundation
 import CodableData
 
-struct Name: UUIDModel, Codable, Filterable {
+struct Name: UUIDModel, Codable, Filterable, Equatable {
     let id: UUID
 
     var first: String

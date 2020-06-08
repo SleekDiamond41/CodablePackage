@@ -29,6 +29,12 @@ extension Table.Column {
 
 class Writer<T: Model & Encodable> {
 	
+	static func values(for value: T) throws -> [(key: String, value: Bindable)] {
+		let writer = _Writer()
+		try value.encode(to: writer)
+		return writer.values
+	}
+	
 	private let writer = _Writer()
 	
 	

@@ -13,9 +13,10 @@ final class CodableDataTests: XCTestCase {
     }
 
     override func tearDown() {
-        super.tearDown()
-		
 		try? db?.deleteWithoutReconnecting()
+		db = nil
+		
+		super.tearDown()
     }
 
     func testCreateDatabase() {

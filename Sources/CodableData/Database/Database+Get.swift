@@ -43,7 +43,7 @@ extension Database {
 		return results
 	}
 	
-	func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
+	private func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
 		var copy = filter
 		
 		guard let t = try table(Element.tableName) else {
