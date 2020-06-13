@@ -34,32 +34,57 @@ final class CodableDataTests: XCTestCase {
         XCTAssertEqual(filter.bindings.count, 0)
 
         filter = Filter<Name>(\.age, is: .equal(to: 3))
-        XCTAssertEqual(filter.query, "WHERE \"age\" IS ?")
+        XCTAssertEqual(filter.query, """
+		WHERE "age" IS ?
+		""")
         XCTAssertEqual(filter.bindings.count, 1)
 
         filter = Filter<Name>()
         filter = filter.and(\.first, is: .equal(to: "Michael")).limit(10)
-        XCTAssertEqual(filter.query, "WHERE \"first\" LIKE ? LIMIT 10")
-        XCTAssertEqual(filter.bindings.count, 1)
+        XCTAssertEqual(filter.query, """
+		WHERE "first" LIKE ? LIMIT ?
+		""")
+		XCTAssertEqual(filter.bindings, [
+			.text("Michael"),
+			.integer(Int64(UInt32(10)))
+		])
 
         filter = filter.and(\.last, is: .like("Arrington")).limit(50, page: 3)
-        XCTAssertEqual(filter.query, "WHERE \"first\" LIKE ? AND \"last\" LIKE ? LIMIT 50 OFFSET 150")
-        XCTAssertEqual(filter.bindings.count, 2)
+        XCTAssertEqual(filter.query, """
+		WHERE "first" LIKE ? AND "last" LIKE ? LIMIT ? OFFSET ?
+		""")
+        XCTAssertEqual(filter.bindings, [
+			.text("Michael"),
+			.text("Arrington"),
+			.integer(Int64(UInt32(50))),
+			.integer(Int64(UInt32(3))),
+		])
 
         let otherFilter = Filter<Name>(\.age, is: .between(18, and: 30))
         filter = filter.or(otherFilter)
         // FIXME: look into logical ways to make complex AND/ORs split up in an appropriate way
-        XCTAssertEqual(filter.query, "WHERE (\"first\" LIKE ? AND \"last\" LIKE ?) OR (\"age\" BETWEEN ? AND ?) LIMIT 50 OFFSET 150")
-        XCTAssertEqual(filter.bindings.count, 4)
+        XCTAssertEqual(filter.query, """
+		WHERE ("first" LIKE ? AND "last" LIKE ?) OR ("age" BETWEEN ? AND ?) LIMIT ? OFFSET ?
+		""")
+        XCTAssertEqual(filter.bindings, [
+			.text("Michael"),
+			.text("Arrington"),
+			.integer(Int64(Int(18))),
+			.integer(Int64(Int(30))),
+			.integer(Int64(UInt32(50))),
+			.integer(Int64(UInt32(3))),
+		])
     }
 	
 	func testSorting() {
 		let filter = Filter<Name>()
 			.sorting(by: \.age)
-			.sorting(by: \.first, direction: .ascending)
-			.sorting(by: \.last, direction: .descending)
+			.sorting(by: \.first, .ascending)
+			.sorting(by: \.last, .descending)
 		
-		XCTAssertEqual(filter.query, "ORDER BY age ASC, first ASC, last DESC")
+		XCTAssertEqual(filter.query, """
+		ORDER BY "age" ASC, "first" ASC, "last" DESC
+		""")
 	}
 	
 	func testCount() {
@@ -113,6 +138,44 @@ final class CodableDataTests: XCTestCase {
 		
 		XCTAssertNoThrow(try db.deleteTheWholeDangDatabase())
     }
+	
+	func test_getModels() {
+		let models = [
+			Name(id: UUID(), first: "Michael", last: "Arrington", age: 10),
+			Name(id: UUID(), first: "Johnny", last: "Appleseed", age: 20),
+		]
+		
+		for model in models {
+			// do this to manually generate the appropriate table
+			try! db.save(model)
+		}
+		
+		var filter = Filter<Name>()
+			.sorting(by: \.age, .ascending)
+		
+		XCTAssertEqual(try! db.count(with: filter), 2)
+		XCTAssertEqual(try! db.get(with: filter), models)
+		
+		filter = filter.and(\.first, is: .in(["Michael", "Johnny"]))
+		XCTAssertEqual(try! db.count(with: filter), 2)
+		XCTAssertEqual(try! db.get(with: filter), models)
+		
+		filter = Filter(\.first, is: .in(["Michael", "Johnny"]))
+		XCTAssertEqual(try! db.count(with: filter), 2)
+		XCTAssertEqual(try! db.get(with: filter), models)
+		
+		filter = Filter(\.age, is: .in([10, 20]))
+		XCTAssertEqual(try! db.count(with: filter), 2)
+		XCTAssertEqual(try! db.get(with: filter), models)
+		
+		filter = Filter(\.age, is: .in([10]))
+		XCTAssertEqual(try! db.count(with: filter), 1)
+		XCTAssertEqual(try! db.get(with: filter).first, models.first)
+		
+		filter = Filter(\.age, is: .notIn([10]))
+		XCTAssertEqual(try! db.count(with: filter), 1)
+		XCTAssertEqual(try! db.get(with: filter)[0], models[1])
+	}
 	
 	func test_savingUnicodeCharacters() {
 		

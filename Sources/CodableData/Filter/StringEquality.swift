@@ -9,23 +9,29 @@
 import Foundation
 
 
-public enum StringEquality: Rule {
-	case like(String)
-	case glob(String)
-	case regex(String)
-	case matches(String)
+public struct StringEquality: Rule {
 	
-	internal var query: (String, [String]) {
-		switch self {
-		case .like(let val):
-			return ("LIKE ?", [val])
-		case .glob(let val):
-			return ("GLOB ?", [val])
-		case .regex(let val):
-			return ("REGEXP ?", [val])
-		case .matches(let val):
-			return ("MATCH ?", [val])
-		}
+	let query: (String, [SQLValue])
+	
+	internal init(_ query: (String, [SQLValue])) {
+		self.query = query
+	}
+	
+	public static func like(_ value: String) -> StringEquality {
+		return StringEquality(("LIKE ?", [value.bindingValue]))
+	}
+	
+	public static func glob(_ value: String) -> StringEquality {
+		return StringEquality(("GLOB ?", [value.bindingValue]))
+	}
+	
+	public static func regex(_ value: String) -> StringEquality {
+		// FIXME: add unit tests for REGEXP
+		return StringEquality(("REGEXP ?", [value.bindingValue]))
+	}
+	
+	public static func matches(_ value: String) -> StringEquality {
+		return StringEquality(("MATCH ?", [value.bindingValue]))
 	}
 }
 

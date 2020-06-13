@@ -9,25 +9,51 @@
 import Foundation
 
 
-public enum Equality<T>: Rule where T: Equatable & Bindable {
-	case equal(to: T)
-	case notEqual(to: T)
+public struct Equality<T>: Rule where T: Equatable & Bindable {
 	
-	internal var query: (String, [T]) {
-		switch self {
-		case .equal(to: let value):
-			if let oper = value as? EqualityOperand {
-				return (oper.equalQuery, oper.shouldBind ? [value] : [])
-			} else {
-				return ("IS ?", [value])
-			}
-		case .notEqual(to: let value):
-			if let oper = value as? EqualityOperand {
-				return (oper.notEqualQuery, oper.shouldBind ? [value] : [])
-			} else {
-				return ("IS NOT ?", [value])
-			}
-		}
+	internal let query: (String, [SQLValue])
+	
+	internal init(_ query: (String, [SQLValue])) {
+		self.query = query
+	}
+}
+
+extension Equality {
+	
+	public static func equal(to value: String) -> Equality {
+		return Equality(("LIKE ?", [value.bindingValue]))
+	}
+	
+	public static func notEqual(to value: String) -> Equality {
+		return Equality(("NOT LIKE ?", [value.bindingValue]))
+	}
+	
+	public static func equal(to value: T) -> Equality {
+		return Equality(("IS ?", [value.bindingValue]))
+	}
+	
+	public static func notEqual(to value: T) -> Equality {
+		return Equality(("IS NOT ?", [value.bindingValue]))
+	}
+	
+	public static func `in`(_ values: [T]) -> Equality {
+		let q = [
+			"IN (",
+			Array(repeating: "?", count: values.count).joined(separator: ", "),
+			")",
+		].joined()
+		
+		return Equality((q, values.map { $0.bindingValue }))
+	}
+	
+	public static func notIn(_ values: [T]) -> Equality {
+		let q = [
+			"NOT IN (",
+			Array(repeating: "?", count: values.count).joined(separator: ", "),
+			")",
+		].joined()
+		
+		return Equality((q, values.map { $0.bindingValue }))
 	}
 }
 
@@ -44,63 +70,5 @@ extension Filter {
 	
 	public func or<T>(_ path: KeyPath<Element, T>, is rule: Equality<T>) -> Filter where T: Equatable & Bindable {
         return or(path: path, rule: rule)
-	}
-}
-
-
-/// A type that uses custom equality comparisons
-fileprivate protocol EqualityOperand {
-	var shouldBind: Bool { get }
-	var equalQuery: String { get }
-	var notEqualQuery: String { get }
-}
-
-extension String: EqualityOperand {
-	fileprivate var shouldBind: Bool {
-		return true
-	}
-	fileprivate var equalQuery: String {
-		return "LIKE ?"
-	}
-	fileprivate var notEqualQuery: String {
-		return "NOT LIKE ?"
-	}
-}
-
-extension Optional: EqualityOperand {
-	fileprivate var shouldBind: Bool {
-		switch self {
-		case .none:
-			return false
-		case .some(let val):
-            if let operand = val as? EqualityOperand {
-                return operand.shouldBind
-            }
-			return true
-		}
-	}
-	fileprivate var equalQuery: String {
-		switch self {
-		case .none:
-			return "IS NULL"
-		case .some(let val):
-			if let v = val as? EqualityOperand {
-				return v.equalQuery
-			} else {
-				return "IS ?"
-			}
-		}
-	}
-	fileprivate var notEqualQuery: String {
-		switch self {
-		case .none:
-			return "IS NOT NULL"
-		case .some(let val):
-			if let v = val as? EqualityOperand {
-				return v.equalQuery
-			} else {
-				return "IS NOT ?"
-			}
-		}
 	}
 }

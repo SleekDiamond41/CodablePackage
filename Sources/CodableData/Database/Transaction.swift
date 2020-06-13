@@ -69,18 +69,28 @@ public struct Transaction: CustomStringConvertible {
 		
 		var status = Status.error
 		
-		do {
-			// we put this in a `do` block to make sure
-			// the statement will be finalized
-			var begin = Statement("BEGIN TRANSACTION;")
-			try begin.prepare(in: db.connection.db)
-			defer { begin.finalize() }
-			
-			status = begin.step()
-		}
+		var begin = Statement("BEGIN TRANSACTION;")
+		try! begin.prepare(in: db.connection.db)
+		defer { begin.finalize() }
+		
+		status = begin.step()
 		
 		guard status == .done else {
 			preconditionFailure("okay how'd I mess up 'BEGIN TRANSACTION'")
+		}
+		
+		defer {
+			// make sure we end a transaction no matter what
+			// (assuming we successfully began the transaction)
+			var end = Statement("END TRANSACTION;")
+			try! end.prepare(in: db.connection.db)
+			defer { end.finalize() }
+			
+			status = end.step()
+			
+			guard status == .done else {
+				preconditionFailure()
+			}
 		}
 		
 		for (q, values) in actions {
@@ -97,16 +107,6 @@ public struct Transaction: CustomStringConvertible {
 			guard status == .done else {
 				preconditionFailure()
 			}
-		}
-		
-		var end = Statement("END TRANSACTION;")
-		try end.prepare(in: db.connection.db)
-		defer { end.finalize() }
-		
-		status = end.step()
-		
-		guard status == .done else {
-			preconditionFailure()
 		}
 	}
 }

@@ -98,7 +98,7 @@ class TransactionTests: XCTestCase {
 				t.save(movies)
 			}
 			
-			let nameResults = try db.get(sorting: SortRule(\Name.first))
+			let nameResults = try db.get(with: Filter<Name>().sorting(by: \.first))
 			let movieResults = try db.get(with: Filter<Movie>())
 			
 			XCTAssertEqual(nameResults, names)
@@ -143,7 +143,7 @@ class TransactionTests: XCTestCase {
 				t.save(movies.first!)
 			}
 			
-			let nameResults = try db.get(sorting: SortRule(\Name.first))
+			let nameResults = try db.get(with: Filter<Name>().sorting(by: \.first))
 			let movieResults = try db.get(with: Filter<Movie>())
 			
 			XCTAssertEqual(nameResults.count, 1)

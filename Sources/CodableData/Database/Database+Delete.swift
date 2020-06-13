@@ -15,6 +15,11 @@ extension Database {
 		let id = value[keyPath: T.idKey]
 		let filter = Filter(T.idKey, is: .equal(to: id))
 		
+		try delete(with: filter)
+	}
+	
+	public func delete<T>(with filter: Filter<T>) throws where T: Model {
+		
 		var s = Statement(.delete(filter))
 		
         try s.prepare(in: connection.db)
@@ -23,7 +28,9 @@ extension Database {
             s.finalize()
         }
 		
-		try s.bind(value[keyPath: T.idKey].bindingValue, at: 1)
+		for (offset, value) in filter.bindings.enumerated() {
+			try s.bind(value, at: Int32(offset) + 1)
+		}
         
 		let status = s.step()
 		

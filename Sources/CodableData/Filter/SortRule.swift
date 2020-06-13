@@ -20,12 +20,12 @@ public struct SortRule<Element: Filterable>: Codable, Equatable {
 		let direction: Direction
 		
 		var query: String {
-			return column + " " + (direction == .ascending ? "ASC" : "DESC")
+			return column.sqlFormatted() + " " + (direction == .ascending ? "ASC" : "DESC")
 		}
 	}
 	
-	var query: String {
-		return "ORDER BY " + sorts.map { $0.query }.joined(separator: ", ")
+	var query: (String, [SQLValue]) {
+		return ("ORDER BY " + sorts.map { $0.query }.joined(separator: ", "), [])
 	}
 	private var sorts: [Sort]
 	
@@ -33,11 +33,11 @@ public struct SortRule<Element: Filterable>: Codable, Equatable {
 		self.sorts = sorts
 	}
 	
-	public init<T>(_ path: KeyPath<Element, T>, direction: Direction = .ascending) where T: Bindable & Comparable {
+	init<T>(_ path: KeyPath<Element, T>, _ direction: Direction = .ascending) where T: Bindable & Comparable {
 		self.sorts = [Sort(column: Element.key(for: path).stringValue, direction: direction)]
 	}
 	
-	public func then<T>(_ path: KeyPath<Element, T>, direction: Direction = .ascending) -> SortRule where T: Bindable & Comparable {
+	public func then<T>(_ path: KeyPath<Element, T>, _ direction: Direction = .ascending) -> SortRule where T: Bindable & Comparable {
 		return SortRule(sorts: sorts + [Sort(column: Element.key(for: path).stringValue, direction: direction)])
 	}
 	

@@ -51,11 +51,17 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE (\"age\" > ? OR \"age\" < ?) OR (\"first\" MATCH ? OR \"last\" REGEXP ?)")
         XCTAssertEqual(filter.bindings.count, 4)
     }
+	
+	func test_inValues() {
+		var filter = Filter<Name>().and(\.first, is: .like("m%"))
+		
+		print(filter.description)
+	}
 
     func testDescription() {
         XCTAssertEqual(Filter<Name>().description, """
         Filter<Name>
-            - Query: ""
+            - Query:
             - Binding Values: []
         """)
 
@@ -64,10 +70,12 @@ class FilterTests: XCTestCase {
                 .and(\.first, is: .like("Michael")))
             .and(\.age, is: .less(than: 40))
             .or(Filter(\.age, is: .less(than: 40)))
+			.sorting(by: \.last, .ascending)
+			.sorting(by: \.age, .descending)
 
         XCTAssertEqual(filter.description, """
         Filter<Name>
-            - Query: "WHERE (("last" NOT LIKE ?) OR ("age" > ? AND "first" LIKE ?) AND "age" < ?) OR ("age" < ?)"
+            - Query: WHERE (("last" NOT LIKE ?) OR ("age" > ? AND "first" LIKE ?) AND "age" < ?) OR ("age" < ?) ORDER BY "last" ASC, "age" DESC
             - Binding Values: ["Arrington", 20, "Michael", 40, 40]
         """)
     }

@@ -9,9 +9,7 @@
 import Foundation
 
 protocol Rule {
-	associatedtype T: Bindable
-
-	var query: (String, [T]) { get }
+	var query: (String, [SQLValue]) { get }
 }
 
 enum JoinMethod: String, Codable, Equatable {
@@ -101,7 +99,7 @@ struct AnyRule: Codable, Equatable {
 		
 		let stuff = rule.query
 		
-		self.bindings = stuff.1.map { $0.bindingValue }
+		self.bindings = stuff.1
 		self.query = "\(column.sqlFormatted()) \(stuff.0)"
 	}
 	
@@ -177,34 +175,26 @@ public struct Filter<Element>: Codable, Equatable where Element: Filterable {
 		
 		return [
 			_query.map { !$0.query.isEmpty ? "WHERE " + $0.query : "" },
-			sort?.query,
-			limit?.query,
+			sort?.query.0,
+			limit?.query.0,
 		]
-		.compactMap { ($0?.isEmpty ?? true) ? nil : $0 }
+		.compactMap { $0 }
+		.filter { !$0.isEmpty }
 		.joined(separator: " ")
-		
-//		var result = ""
-//
-//		if let query = _query?.query, !query.isEmpty {
-//			result += "WHERE " + query
-//		}
-//		if let sort = sort {
-//			result += (result.count > 0 ? " " : "") + sort.query
-//		}
-//		if let limit = limit {
-//			result += (result.count > 0 ? " " : "") + limit.query
-//		}
-//		return result
 	}
 	
-	var bindings: [SQLValue] { _query?.bindings ?? [] }
+	var bindings: [SQLValue] {
+		(_query?.bindings ?? [])
+			+ (sort?.query.1 ?? [])
+			+ (limit?.query.1 ?? [])
+	}
 
 	private(set) var _query: Query?
 	private var limit: Limit?
 	private var sort: SortRule<Element>?
 	
 	var usesColumns: Bool {
-		return [_query?.query, sort?.query]
+		return [_query?.query, sort?.query.0]
 			.compactMap { $0 }
 			.allSatisfy { !$0.isEmpty }
 	}
@@ -213,38 +203,16 @@ public struct Filter<Element>: Codable, Equatable where Element: Filterable {
 		_query?.remove(column: column)
 		sort?.remove(column: column)
 	}
+	
 
-
-	init(query: Query?, bindings: [Bindable], limit: Limit?, sort: SortRule<Element>?) {
-		self._query = query
-//		self.bindings = bindings
-		self.limit = limit
-		self.sort = sort
-	}
-
-	init(_ sort: SortRule<Element>) {
-//		self._query = ""
-//		self.bindings = []
-		self.limit = nil
-		self.sort = sort
-	}
-
-    init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, U.T == T {
-//        let (str, vals) = rule.query
-//        self._query = "\(Element.key(for: path).stringValue) \(str)"
+	init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, T: Bindable {
 		
 		self._query = .anyRule(AnyRule(column: Element.key(for: path).stringValue, rule: rule))
-//		self.bindings = rule.query.1
-        self.limit = nil
-        self.sort = nil
     }
 
     public init() {
-//        self._query = ""
-//        self.bindings = []
-        self.limit = nil
-        self.sort = nil
-    }
+		// this allows consumers to create a Filter for ALL elements of type Element
+	}
 
     // MARK: - Helper Methods
     private func join(_ other: Filter, with method: JoinMethod, usingParentheses: Bool) -> Filter {
@@ -276,12 +244,11 @@ public struct Filter<Element>: Codable, Equatable where Element: Filterable {
         return copy
     }
 
-	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
+	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, T: Bindable {
 		return join(Filter(path: path, rule: rule), with: .and, usingParentheses: false)
 	}
 
-	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, U.T == T {
-
+	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, T: Bindable {
 		return join(Filter(path: path, rule: rule), with: .or, usingParentheses: false)
 	}
 
@@ -295,14 +262,14 @@ public struct Filter<Element>: Codable, Equatable where Element: Filterable {
 		return join(filter, with: .or, usingParentheses: true)
     }
 
-	public func sorting<T>(by path: KeyPath<Element, T>, direction: SortRule<Element>.Direction = .ascending) -> Filter where T: Bindable & Comparable {
+	public func sorting<T>(by path: KeyPath<Element, T>, _ direction: SortRule<Element>.Direction = .ascending) -> Filter where T: Bindable & Comparable {
 
 		var copy = self
-        copy.sort = self.sort?.then(path, direction: direction) ?? SortRule(path, direction: direction)
+        copy.sort = self.sort?.then(path, direction) ?? SortRule(path, direction)
 		return copy
 	}
 
-	public func limit(_ limit: UInt, page: UInt = 0) -> Filter {
+	public func limit(_ limit: UInt32, page: UInt32 = 0) -> Filter {
 		var copy = self
 		copy.limit = Limit(limit, page)
 		return copy
@@ -342,9 +309,11 @@ extension Filter: CustomStringConvertible {
 		
 		valueString += "]"
 		
+		let q = query.isEmpty ? "" : (" " + query)
+		
         return """
         Filter<\(Element.self)>
-            - Query: "\(query)"
+            - Query:\(q)
             - Binding Values: \(valueString)
         """
     }

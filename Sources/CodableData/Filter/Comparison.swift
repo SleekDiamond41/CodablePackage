@@ -9,25 +9,28 @@
 import Foundation
 
 
-public enum Comparison<T>: Rule where T: Bindable & Comparable {
-	case greater(than: T)
-	case less(than: T)
-	case between(T, and: T)
-	case notBetween(T, and: T)
+public struct Comparison<T>: Rule where T: Bindable & Comparable {
 	
-	internal var query: (String, [T]) {
-		switch self {
-		case .greater(than: let val):
-			return ("> ?", [val])
-		case .less(than: let val):
-			return ("< ?", [val])
-		case .between(let a, and: let b):
-			assert(a < b)
-			return ("BETWEEN ? AND ?", [a, b])
-		case .notBetween(let a, and: let b):
-			assert(a < b)
-			return ("NOT BETWEEN ? AND ?", [a, b])
-		}
+	internal let query: (String, [SQLValue])
+	
+	internal init(_ query: (String, [SQLValue])) {
+		self.query = query
+	}
+	
+	public static func greater(than other: T) -> Comparison {
+		return Comparison(("> ?", [other.bindingValue]))
+	}
+	
+	public static func less(than other: T) -> Comparison {
+		return Comparison(("< ?", [other.bindingValue]))
+	}
+	
+	public static func between(_ a: T, and b: T) -> Comparison {
+		return Comparison(("BETWEEN ? AND ?", [a.bindingValue, b.bindingValue]))
+	}
+	
+	public static func notBetween(_ a: T, and b: T) -> Comparison {
+		return Comparison(("NOT BETWEEN ? AND ?", [a.bindingValue, b.bindingValue]))
 	}
 }
 
