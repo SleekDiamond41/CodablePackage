@@ -74,8 +74,4 @@ extension Database {
     public func get<T>(with filter: Filter<T>) throws -> [T] where T: Decodable & Model {
         return try get(filter: filter)
     }
-
-	public func get<T>(sorting: SortRule<T>) throws -> [T] where T: Decodable & Model {
-        return try get(with: Filter(sorting))
-	}
 }
