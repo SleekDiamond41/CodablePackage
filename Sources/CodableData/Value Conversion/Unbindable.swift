@@ -124,10 +124,16 @@ extension Float: Unbindable {
 
 extension Data: Unbindable {
 	public static func unbind(from s: Statement, at index: Int32!) throws -> Data {
+		let length = sqlite3_column_bytes(s.p, index)
+		
+		guard length > 0 else {
+			return Data()
+		}
+		
 		guard let raw = sqlite3_column_blob(s.p, index) else {
 			fatalError()
 		}
-		let len = sqlite3_column_bytes(s.p, index)
+		
 		return Data(bytes: raw, count: Int(len))
 	}
 }
