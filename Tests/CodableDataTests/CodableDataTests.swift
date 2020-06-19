@@ -214,4 +214,52 @@ final class CodableDataTests: XCTestCase {
 		// change the actual value stored in 'value'
 		XCTAssertEqual(storage.value(for: key) as Bool?, nil)
 	}
+	
+	func test_savingEnums() {
+		struct Temp: UUIDModel, Codable, Filterable {
+			
+			let id: UUID
+			let name: String
+			let key: Key
+			
+			static let idKey = \Temp.id
+			
+			enum Key: String, Codable {
+				case one
+				case two
+			}
+			
+			enum CodingKeys: String, CodingKey {
+				case id
+				case name
+				case key
+			}
+			
+			static func key<T>(for path: KeyPath<Temp, T>) -> CodingKeys where T : Bindable {
+				switch path {
+				case idKey:
+					return .id
+				case \Temp.name:
+					return .name
+				case \Temp.key:
+					return .key
+				default:
+					preconditionFailure()
+				}
+			}
+		}
+		
+		let model = Temp(id: UUID(), name: "bob", key: .one)
+		
+		try! db.save(model)
+		
+		let filter = Filter<Temp>(\.id, is: .equal(to: model.id))
+			.limit(1)
+		
+		let result = try! db.get(with: filter).first!
+		
+		XCTAssertEqual(result.id, model.id)
+		XCTAssertEqual(result.name, model.name)
+		XCTAssertEqual(result.key, model.key)
+	}
 }

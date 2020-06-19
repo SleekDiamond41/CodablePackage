@@ -108,7 +108,7 @@ fileprivate class _Writer: Encoder {
 	}
 	
 	func singleValueContainer() -> SingleValueEncodingContainer {
-		fatalError()
+		return SingleValueContainer(self)
 	}
 	
 	class KeyedContainer<Key>: KeyedEncodingContainerProtocol where Key: CodingKey {

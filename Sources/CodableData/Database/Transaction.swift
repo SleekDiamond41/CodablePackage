@@ -18,9 +18,14 @@ extension Database {
 }
 
 
-public struct Transaction: CustomStringConvertible {
+public struct Transaction: Codable, CustomStringConvertible {
 	
-	private var actions = [(query: String, values: [SQLValue])]()
+	private struct Action: Codable {
+		let query: String
+		let values: [SQLValue]
+	}
+	
+	private var actions = [Action]()
 	
 	public var description: String {
 		"""
@@ -38,7 +43,7 @@ public struct Transaction: CustomStringConvertible {
 		let query = String.save(Element.self, values)
 		let vals = values.map { $0.value.bindingValue }
 		
-		actions.append((query, vals))
+		actions.append(Action(query: query, values: vals))
 	}
 	
 	public mutating func save<C>(_ models: C) where C: Collection, C.Element: Model & Codable & Filterable {
@@ -56,7 +61,7 @@ public struct Transaction: CustomStringConvertible {
 		// it's a little sloppy to just hardcode in the assumption that there will
 		// be exactly one ? placeholder in the statement, but since we're making
 		// the Filter in this same function it feels reasonable
-		actions.append((query, [id.bindingValue]))
+		actions.append(Action(query: query, values: [id.bindingValue]))
 	}
 	
 	public mutating func delete<C>(_ models: C) where C: Collection, C.Element: Model & Codable & Filterable {
@@ -93,12 +98,13 @@ public struct Transaction: CustomStringConvertible {
 			}
 		}
 		
-		for (q, values) in actions {
-			var s = Statement(q)
+		for action in actions {
+			
+			var s = Statement(action.query)
 			try s.prepare(in: db.connection.db)
 			defer { s.finalize() }
 			
-			for (offset, value) in values.enumerated() {
+			for (offset, value) in action.values.enumerated() {
 				try s.bind(value, at: Int32(offset) + 1)
 			}
 			
