@@ -134,7 +134,7 @@ extension Data: Unbindable {
 			fatalError()
 		}
 		
-		return Data(bytes: raw, count: Int(len))
+		return Data(bytes: raw, count: Int(length))
 	}
 }
 
