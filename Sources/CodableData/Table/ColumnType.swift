@@ -37,9 +37,10 @@ extension ColumnType {
 
 
 extension ColumnType: Unbindable {
-	static func unbind(from s: Statement, at index: Int32!) throws -> ColumnType {
-		let type = try String.unbind(from: s, at: index)
-		
+	
+	static func unbind(_ proxy: UnbindingProxy) -> ColumnType {
+		let type = proxy.get() as String
+
 		if type.contains("TEXT") {
 			return .text
 		} else if type.contains("INTEGER") {

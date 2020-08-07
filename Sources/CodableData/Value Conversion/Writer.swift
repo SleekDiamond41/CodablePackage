@@ -12,7 +12,7 @@ extension Table.Column {
 	init(name: String, type: SQLValue) {
 		let t: ColumnType
 		switch type {
-		case .text:
+		case .string:
 			t = .text
 		case .integer:
 			t = .integer

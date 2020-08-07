@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "SwiftFilter",
+        "repositoryURL": "https://github.com/SleekDiamond41/Filter.git",
+        "state": {
+          "branch": null,
+          "revision": "b009582c151ba1780a621387a9f9bf57e482c5fc",
+          "version": "0.0.6"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

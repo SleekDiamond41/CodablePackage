@@ -38,7 +38,7 @@ public final class KeyValueStorage {
 	
 	public func value<T>(for key: String) -> T? where T: Decodable {
 		do {
-			let filter = Filter<KeyValue>(\.id, is: .like(key))
+			let filter = Filter<KeyValue>(\.id, is: .exactly(key))
 				.limit(1)
 			
 			guard let pair = try db.get(with: filter).first else {
@@ -54,7 +54,7 @@ public final class KeyValueStorage {
 	}
 	
 	public func removeValue(for key: String) {
-		let filter = Filter<KeyValue>(\.id, is: .like(key))
+		let filter = Filter<KeyValue>(\.id, is: .exactly(key))
 			.limit(1)
 		
 		do {
@@ -85,7 +85,7 @@ private struct KeyValue: Model, Codable, Filterable {
 		case data
 	}
 	
-	static func key<T>(for path: KeyPath<KeyValue, T>) -> CodingKeys where T : Bindable {
+	static func key(for path: PartialKeyPath<KeyValue>) -> CodingKeys {
 		switch path {
 		case KeyValue.idKey:
 			return .id
@@ -93,6 +93,15 @@ private struct KeyValue: Model, Codable, Filterable {
 			return .data
 		default:
 			preconditionFailure("Unknown KeyPath!")
+		}
+	}
+	
+	static func path(for key: CodingKeys) -> PartialKeyPath<KeyValue> {
+		switch key {
+		case .id:
+			return \.id
+		case .data:
+			return \.data
 		}
 	}
 }

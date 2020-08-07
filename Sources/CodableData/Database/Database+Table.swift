@@ -20,16 +20,26 @@ extension Database {
             s.finalize()
         }
 
+		var proxy = Proxy(s, isNull: { _ in false })
         var columns = [Table.Column]()
         var status = s.step()
 
         while status == .row {
+			
+			proxy.index = 1
+			let name: String = proxy.get()
+			
+			proxy.index = 2
+			let type = ColumnType.unbind(proxy)
+			
+			proxy.index = 5
+			let isPrimaryKey = Bool.unbind(proxy)
 
             columns.append(
                 Table.Column(
-                    name: try String.unbind(from: s, at: 1),
-                    type: try ColumnType.unbind(from: s, at: 2),
-                    isPrimaryKey: try Bool.unbind(from: s, at: 5))
+                    name: name,
+                    type: type,
+                    isPrimaryKey: isPrimaryKey)
             )
             status = s.step()
         }

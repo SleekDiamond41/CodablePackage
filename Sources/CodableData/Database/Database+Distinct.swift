@@ -25,11 +25,12 @@ extension Database {
 			s.finalize()
 		}
 		
+		let proxy = Proxy(s, isNull: { (_) in false })
 		var results = [T]()
 		var status = s.step()
 		
 		while status == .row {
-			results.append(try T.unbind(from: s, at: 0))
+			results.append(T.unbind(proxy))
 			status = s.step()
 		}
 		

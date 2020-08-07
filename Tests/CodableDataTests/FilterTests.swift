@@ -23,11 +23,13 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE \"age\" > ? AND \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
-        let other = Filter<Name>(\.first, is: .matches("Arrington"))
-            .and(\.last, is: .regex("example"))
+        let other = Filter<Name>(\.first, is: .exactly("Arrington"))
+			.and(\.last, is: .ends(with: "example"))
 
         filter = filter.and(other)
-        XCTAssertEqual(filter.query, "WHERE (\"age\" > ? AND \"age\" < ?) AND (\"first\" MATCH ? AND \"last\" REGEXP ?)")
+        XCTAssertEqual(filter.query, """
+		WHERE ("age" > ? AND "age" < ?) AND ("first" LIKE ? AND "last" LIKE ?)
+		""")
         XCTAssertEqual(filter.bindings.count, 4)
     }
 
@@ -44,46 +46,46 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE \"age\" > ? OR \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
-        let other = Filter<Name>(\.first, is: .matches("Arrington"))
-            .or(\.last, is: .regex("example"))
+        let other = Filter<Name>(\.first, is: .exactly("Arrington"))
+			.or(\.last, is: .ends(with:"example"))
 
         filter = filter.or(other)
-        XCTAssertEqual(filter.query, "WHERE (\"age\" > ? OR \"age\" < ?) OR (\"first\" MATCH ? OR \"last\" REGEXP ?)")
+        XCTAssertEqual(filter.query, """
+		WHERE ("age" > ? OR "age" < ?) OR ("first" LIKE ? OR "last" LIKE ?)
+		""")
         XCTAssertEqual(filter.bindings.count, 4)
     }
 	
-	func test_inValues() {
-		var filter = Filter<Name>().and(\.first, is: .like("m%"))
-		
-		print(filter.description)
-	}
+//	func test_inValues() {
+//		let filter = Filter<Name>().and(\.first, is: .starts(with: "m%"))
+//			.and(\.age, is: .in([]))
+//
+//		print(filter.description)
+//	}
 
     func testDescription() {
         XCTAssertEqual(Filter<Name>().description, """
-        Filter<Name>
-            - Query:
-            - Binding Values: []
+        Filter<Name>:
         """)
 
         let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
             .or(Filter(\.age, is: .greater(than: 20))
-                .and(\.first, is: .like("Michael")))
+                .and(\.first, is: .exactly("Michael")))
             .and(\.age, is: .less(than: 40))
             .or(Filter(\.age, is: .less(than: 40)))
-			.sorting(by: \.last, .ascending)
-			.sorting(by: \.age, .descending)
-
+			.sort(by: \.last, .ascending)
+			.sort(by: \.age, .descending)
+			.limit(15, page: 3)
+		
         XCTAssertEqual(filter.description, """
-        Filter<Name>
-            - Query: WHERE (("last" NOT LIKE ?) OR ("age" > ? AND "first" LIKE ?) AND "age" < ?) OR ("age" < ?) ORDER BY "last" ASC, "age" DESC
-            - Binding Values: ["Arrington", 20, "Michael", 40, 40]
+        Filter<Name>: WHERE ((last IS NOT 'Arrington') OR (age IS GREATER THAN 20 AND first IS EXACTLY 'Michael') AND age IS LESS THAN 40) OR (age IS LESS THAN 40) ORDER BY "last" ASC, "age" DESC LIMIT 15 OFFSET 45
         """)
     }
 	
 	func testDecodingEncoding() {
 		let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
 			.or(Filter(\.age, is: .greater(than: 20))
-				.and(\.first, is: .like("Michael")))
+				.and(\.first, is: .exactly("Michael")))
 			.and(\.age, is: .less(than: 40))
 			.or(Filter(\.age, is: .less(than: 40)))
 		

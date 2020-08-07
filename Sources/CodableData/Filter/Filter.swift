@@ -1,182 +1,305 @@
 //
 //  Filter.swift
-//  SQL
+//  
 //
-//  Created by Michael Arrington on 4/2/19.
-//  Copyright © 2019 Duct Ape Productions. All rights reserved.
+//  Created by Michael Arrington on 8/6/20.
 //
 
 import Foundation
+import SwiftFilter
 
-protocol Rule {
-	var query: (String, [SQLValue]) { get }
-}
-
-enum JoinMethod: String, Codable, Equatable {
-	case and = "AND"
-	case or = "OR"
-}
+public typealias Filter = SwiftFilter.Filter
+public typealias Filterable = SwiftFilter.Filterable
+public typealias SortRule = SwiftFilter.SortRule
+public typealias Limit = SwiftFilter.Limit
+public typealias Where = SwiftFilter.Where
+public typealias SQLValue = SwiftFilter.SQLValue
 
 
-enum Query: Codable, Equatable {
-	init(from decoder: Decoder) throws {
-		let container = try decoder.container(keyedBy: CodingKeys.self)
-		
-		let type = try container.decode(CodingKeys.Types.self, forKey: .type)
-		
-		switch type {
-		case .anyRule:
-			self = .anyRule(try container.decode(AnyRule.self, forKey: .value))
-		case .compound:
-			self = .compound(try container.decode(Compound.self, forKey: .value))
-		}
-	}
+public typealias Bindable = SwiftFilter.Bindable & Unbindable
+
+
+extension SQLValue: CustomStringConvertible {
 	
-	func encode(to encoder: Encoder) throws {
-		var container = encoder.container(keyedBy: CodingKeys.self)
-		
+	public var description: String {
 		switch self {
-		case .anyRule(let rule):
-			try container.encode(CodingKeys.Types.anyRule, forKey: .type)
-			try container.encode(rule, forKey: .value)
-		case .compound(let compound):
-			try container.encode(CodingKeys.Types.compound, forKey: .type)
-			try container.encode(compound, forKey: .value)
+		case .integer(let num):
+			return "\(num)"
+		case .double(let num):
+			return "\(num)"
+		case .string(let s):
+			return "'\(s)'"
+		case .blob(let data):
+			return "[RawData:\((data as NSData).length)-bytes]"
+		case .null:
+			return "NULL"
 		}
 	}
-	
-	private enum CodingKeys: String, CodingKey {
-		case type
-		case value
+}
+
+
+extension Where.StringEquality: CustomStringConvertible {
+	var query: String {
+		let column = T.key(for: keyPath).stringValue.sqlFormatted()
 		
-		enum Types: String, Codable {
-			case anyRule
-			case compound
+		return "\(column) LIKE ?"
+	}
+	
+	var bindingValues: [SQLValue] {
+		
+		let value: String
+		
+		switch method {
+		case .contains:
+			value = "%\(self.value)%"
+		case .exactly:
+			value = "\(self.value)"
+		case .starts:
+			value = "\(self.value)%"
+		case .ends:
+			value = "%\(self.value)"
+		}
+		
+		return [.string(value)]
+	}
+	
+	public var description: String {
+		let column = T.key(for: keyPath).stringValue
+		
+		switch method {
+		case .contains:
+			return "\(column) CONTAINS '\(value)'"
+		case .exactly:
+			return "\(column) IS EXACTLY '\(value)'"
+		case .starts:
+			return "\(column) STARTS WITH '\(value)'"
+		case .ends:
+			return "\(column) ENDS WITH '\(value)'"
+		}
+	}
+}
+
+extension Where.Equality: CustomStringConvertible {
+	
+	var query: String {
+		let column = T.key(for: keyPath).stringValue.sqlFormatted()
+		
+		switch method {
+		case .equal:
+			return column + " IS ?"
+		case .notEqual:
+			return column + " IS NOT ?"
+		case .in:
+			let placeholders = Array(repeating: "?", count: values.count)
+				.joined(separator: ", ")
+			return column + " IN (\(placeholders))"
+		case .notIn:
+			let placeholders = Array(repeating: "?", count: values.count)
+				.joined(separator: ", ")
+			return column + " NOT IN (\(placeholders))"
 		}
 	}
 	
-	case anyRule(AnyRule)
-	case compound(Compound)
+	public var description: String {
+		let column = T.key(for: keyPath).stringValue
+		
+		switch method {
+		case .equal:
+			return column + " IS \(values[0].description)"
+		case .notEqual:
+			return column + " IS NOT \(values[0].description)"
+		case .in:
+			let vals = values
+				.map { $0.description }
+				.joined(separator: ", ")
+			return column + " IS IN (\(vals))"
+		case .notIn:
+			let vals = values
+				.map { $0.description }
+				.joined(separator: ", ")
+			return column + " IS NOT IN (\(vals))"
+		}
+	}
+}
+
+extension Where.Comparison: CustomStringConvertible {
+	var query: String {
+		let column = T.key(for: keyPath).stringValue.sqlFormatted()
+		
+		switch method {
+		case .lessThan:
+			return column + " < ?"
+		case .greaterThan:
+			return column + " > ?"
+		case .between:
+			return column + " BETWEEN ? AND ?"
+		case .notBetween:
+			return column + " NOT BETWEEN ? AND ?"
+		}
+	}
+	
+	public var description: String {
+		let column = T.key(for: keyPath).stringValue
+		
+		switch method {
+		case .lessThan:
+			return column + " IS LESS THAN \(values[0].description)"
+		case .greaterThan:
+			return column + " IS GREATER THAN \(values[0].description)"
+		case .between:
+			return column + " IS BETWEEN \(values[0].description) AND \(values[1].description)"
+		case .notBetween:
+			return column + " IS NOT BETWEEN \(values[0].description) AND \(values[1].description)"
+		}
+	}
+}
+
+extension Where: CustomStringConvertible {
 	
 	var query: String {
 		switch self {
-		case .anyRule(let rule):
-			return rule.query
-		case .compound(let compound):
-			return compound.query
+		case .comparison(let comparison):
+			return comparison.query
+		case .equality(let equality):
+			return equality.query
+		case .stringEquality(let se):
+			return se.query
+		case let .compound(a, conjunction, b):
+			switch conjunction {
+			case .and:
+				return "\(a.query) AND \(b.query)"
+			case .or:
+				return "\(a.query) OR \(b.query)"
+			}
+		case let .grouped(a, conjunction, b):
+			switch conjunction {
+			case .and:
+				return "(\(a.query)) AND (\(b.query))"
+			case .or:
+				return "(\(a.query)) OR (\(b.query))"
+			}
 		}
 	}
 	
-	var bindings: [SQLValue] {
+	var bindingValues: [SQLValue] {
 		switch self {
-		case .anyRule(let rule):
-			return rule.bindings
-		case .compound(let compound):
-			return compound.bindings
+		case .comparison(let comparison):
+			return comparison.values
+		case .equality(let equality):
+			return equality.values
+		case .stringEquality(let se):
+			return se.bindingValues
+		case let .compound(a, _, b):
+			return a.bindingValues + b.bindingValues
+		case let .grouped(a, _, b):
+			return a.bindingValues + b.bindingValues
 		}
 	}
 	
-	mutating func remove(column: String) {
+	public var description: String {
 		switch self {
-		case .anyRule(var rule):
-			rule.remove(column: column)
-			self = .anyRule(rule)
-		case .compound(var compound):
-			compound.remove(column: column)
-			self = .compound(compound)
+		case .comparison(let comparison):
+			return comparison.description
+		case .equality(let equality):
+			return equality.description
+		case .stringEquality(let se):
+			return se.description
+		case let .compound(a, conjunction, b):
+			switch conjunction {
+			case .and:
+				return "\(a.description) AND \(b.description)"
+			case .or:
+				return "\(a.description) OR \(b.description)"
+			}
+		case let .grouped(a, conjunction, b):
+			switch conjunction {
+			case .and:
+				return "(\(a.description)) AND (\(b.description))"
+			case .or:
+				let result = "(\(a.description)) OR (\(b.description))"
+				return result
+			}
 		}
 	}
 }
 
-struct AnyRule: Codable, Equatable {
-	let column: String
-	
-	private(set) var query: String
-	private(set) var bindings: [SQLValue]
-	
-	init<R>(column: String, rule: R) where R: Rule {
-		self.column = column
-		
-		let stuff = rule.query
-		
-		self.bindings = stuff.1
-		self.query = "\(column.sqlFormatted()) \(stuff.0)"
-	}
-	
-	mutating func remove(column: String) {
-		if column == self.column {
-			query = ""
-			bindings = []
-		}
-	}
-}
-
-
-struct Compound: Codable, Equatable {
+extension SortRule.Sort {
 	
 	var query: String {
-		var results = [String]()
+		let column = Element.key(for: path).stringValue.sqlFormatted()
 		
-		for i in parts.indices {
-			guard !parts[i].query.query.isEmpty else {
-				continue
-			}
-			var s = ""
-			
-			if i > parts.startIndex {
-				s += " " + parts[i].method.rawValue + " "
-			}
-			
-			if usesParenthesis {
-				s += "("
-			}
-			
-			s += parts[i].query.query
-			
-			if usesParenthesis {
-				s += ")"
-			}
-			
-			results.append(s)
-		}
-		
-		guard !results.isEmpty else {
-			return ""
-		}
-		
-		return results.joined()
-	}
-	
-	var bindings: [SQLValue] {
-		return Array(parts.map { $0.query.bindings }.joined())
-	}
-	
-	struct Part: Codable, Equatable {
-		let method: JoinMethod
-		var query: Query
-	}
-	
-	private(set) var parts = [Part]()
-	let usesParenthesis: Bool
-	
-	mutating func remove(column: String) {
-		for i in parts.indices {
-			parts[i].query.remove(column: column)
+		switch direction {
+		case .ascending:
+			return column + " ASC"
+		case .descending:
+			return column + " DESC"
 		}
 	}
 }
 
-
-
-
-public struct Filter<Element>: Codable, Equatable where Element: Filterable {
-
+extension SortRule: CustomStringConvertible {
+	
 	var query: String {
+		return "ORDER BY " + sorts.map { $0.query }.joined(separator: ", ")
+	}
+	
+	var bindingValues: [SQLValue] {
+		return []
+	}
+	
+	public var description: String {
+		return query
+	}
+}
+
+extension Limit: CustomStringConvertible {
+	
+	var query: String {
+		// pages start at 0, negative values are a no-no
+		let offset = max(0, page) * count
+
+		let limitString = "LIMIT ?"
+
+		if offset > 0 {
+			return limitString + " OFFSET ?"
+		}
+
+		return limitString
+	}
+	
+	var bindingValues: [SQLValue] {
+		let offset = max(0, page) * count
 		
+		if offset > 0 {
+			return [.integer(Int64(count)), .integer(Int64(page))]
+		}
+		
+		return [.integer(Int64(count))]
+	}
+	
+	public var description: String {
+		// pages start at 0, negative values are a no-no
+		let offset = max(0, page) * count
+
+		let limitString = "LIMIT \(count)"
+
+		if offset > 0 {
+			return limitString + " OFFSET \(offset)"
+		}
+
+		return limitString
+	}
+}
+
+
+extension Filter {
+	var query: String {
 		return [
-			_query.map { !$0.query.isEmpty ? "WHERE " + $0.query : "" },
-			sort?.query.0,
-			limit?.query.0,
+			FilterReader.clause(from: self).map {
+				"WHERE " + $0.query
+			},
+			FilterReader.sorting(from: self)?.query,
+			FilterReader.limit(from: self)?.query,
 		]
 		.compactMap { $0 }
 		.filter { !$0.isEmpty }
@@ -184,137 +307,25 @@ public struct Filter<Element>: Codable, Equatable where Element: Filterable {
 	}
 	
 	var bindings: [SQLValue] {
-		(_query?.bindings ?? [])
-			+ (sort?.query.1 ?? [])
-			+ (limit?.query.1 ?? [])
-	}
-
-	private(set) var _query: Query?
-	private var limit: Limit?
-	private var sort: SortRule<Element>?
-	
-	var usesColumns: Bool {
-		return [_query?.query, sort?.query.0]
-			.compactMap { $0 }
-			.allSatisfy { !$0.isEmpty }
-	}
-	
-	mutating func remove(column: String) {
-		_query?.remove(column: column)
-		sort?.remove(column: column)
-	}
-	
-
-	init<T, U>(path: KeyPath<Element, T>, rule: U) where U: Rule, T: Bindable {
-		
-		self._query = .anyRule(AnyRule(column: Element.key(for: path).stringValue, rule: rule))
-    }
-
-    public init() {
-		// this allows consumers to create a Filter for ALL elements of type Element
-	}
-
-    // MARK: - Helper Methods
-    private func join(_ other: Filter, with method: JoinMethod, usingParentheses: Bool) -> Filter {
-        var copy = self
-		
-		if _query == nil {
-			copy._query = other._query
-        }
-        else {
-			let parts = [_query, other._query]
-				.compactMap { $0 }
-				.map { Compound.Part(method: method, query: $0) }
-			
-			copy._query = .compound(Compound(parts: parts, usesParenthesis: usingParentheses))
-        }
-
-        if let sort = other.sort {
-			// if there's a more recent `sort`,
-			// that overrides the old value
-            copy.sort = sort
-        }
-
-        if let limit = other.limit {
-			// if there's a more recent `limit`,
-			// that overrides the old value
-            copy.limit = limit
-        }
-
-        return copy
-    }
-
-	func and<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, T: Bindable {
-		return join(Filter(path: path, rule: rule), with: .and, usingParentheses: false)
-	}
-
-	func or<T, U>(path: KeyPath<Element, T>, rule: U) -> Filter where U: Rule, T: Bindable {
-		return join(Filter(path: path, rule: rule), with: .or, usingParentheses: false)
-	}
-
-    // MARK: - Public Methods
-
-    public func and(_ filter: Filter) -> Filter {
-		return join(filter, with: .and, usingParentheses: true)
-    }
-
-    public func or(_ filter: Filter) -> Filter {
-		return join(filter, with: .or, usingParentheses: true)
-    }
-
-	public func sorting<T>(by path: KeyPath<Element, T>, _ direction: SortRule<Element>.Direction = .ascending) -> Filter where T: Bindable & Comparable {
-
-		var copy = self
-        copy.sort = self.sort?.then(path, direction) ?? SortRule(path, direction)
-		return copy
-	}
-
-	public func limit(_ limit: UInt32, page: UInt32 = 0) -> Filter {
-		var copy = self
-		copy.limit = Limit(limit, page)
-		return copy
+		return (FilterReader.clause(from: self)?.bindingValues ?? [])
+			+ (FilterReader.sorting(from: self)?.bindingValues ?? [])
+			+ (FilterReader.limit(from: self)?.bindingValues ?? [])
 	}
 }
 
 extension Filter: CustomStringConvertible {
-
-    public var description: String {
-		
-		var valueString = "["
-		
-		let bindings = _query?.bindings ?? []
-		
-		if !bindings.isEmpty {
-			
-			for value in bindings {
-				switch value {
-				case .text(let s):
-					valueString.append("\"\(s)\"")
-				case .integer(let int):
-					valueString.append("\(int)")
-				case .double(let num):
-					valueString.append("\(num)")
-				case .blob(let data):
-					valueString.append(data.description)
-				case .null:
-					valueString.append("<NULL>")
-				}
-				
-				valueString.append(", ")
-			}
-			
-			// remove the dangling comma and space
-			valueString.removeLast(2)
-		}
-		
-		valueString += "]"
-		
-		let q = query.isEmpty ? "" : (" " + query)
-		
-        return """
-        Filter<\(Element.self)>
-            - Query:\(q)
-            - Binding Values: \(valueString)
-        """
-    }
+	
+	public var description: String {
+		return [
+			"Filter<\(Element.self)>:",
+			FilterReader.clause(from: self).map {
+				"WHERE " + $0.description
+			},
+			FilterReader.sorting(from: self)?.description,
+			FilterReader.limit(from: self)?.description,
+		]
+		.compactMap { $0 }
+		.filter { !$0.isEmpty }
+		.joined(separator: " ")
+	}
 }

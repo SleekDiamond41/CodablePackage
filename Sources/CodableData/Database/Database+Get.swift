@@ -54,7 +54,7 @@ extension Database {
 	/// - Throws: <#description#>
 	/// - Returns: an array of elements from the database that match the given query.
 	private func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
-		var copy = filter
+		let copy = filter
 		
 		guard let t = try table(Element.tableName) else {
 			return []
@@ -67,10 +67,10 @@ extension Database {
 			do {
 				return try _get(filter: copy)
 			} catch PreparationError.noSuchColumn(let column) {
-				guard copy.usesColumns else {
-					break
-				}
-				copy.remove(column: column)
+//				guard copy.usesColumns else {
+//					break
+//				}
+//				copy.remove(column: column)
 			}
 		}
 		return []

@@ -57,7 +57,9 @@ struct User: UUIDModel, Codable {
 
 extension User: Filterable {
 	
-	static func key<T>(for path: KeyPath<User, T>) -> CodingKeys where T : Bindable {
+	typealias FilterKey = CodingKeys
+	
+	static func key(for path: PartialKeyPath<User>) -> FilterKey {
 		switch path {
 		case \User.id:
 			return .id
@@ -69,6 +71,15 @@ extension User: Filterable {
 			return .noColumn
 		default:
 			preconditionFailure("unrecognized KeyPath")
+		}
+	}
+	
+	static func path(for key: FilterKey) -> PartialKeyPath<User> {
+		switch key {
+		case .id: return \.id
+		case .firstName: return \.firstName
+		case .age: return \.age
+		case .noColumn: return \.noColumn
 		}
 	}
 }

@@ -30,6 +30,7 @@ extension Database {
 			return 0
 		}
 		
-		return try Int64.unbind(from: s, at: 0)
+		let proxy = Proxy(s, isNull: { _ in false })
+		return Int64.unbind(proxy)
 	}
 }

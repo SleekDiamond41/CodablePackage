@@ -47,30 +47,37 @@ public protocol UUIDModel: Model where PrimaryKey == UUID {
 // if id is valid, update, else insert (table definition should include primary key being
 // autoincrementing, if id is nil then it's ignored when inserting, then we read back the
 // newest value from the database to get it with a valid id
-protocol RowModel: Model where PrimaryKey == Int64? {
-	var id: Int64? { get set }
-}
 
-struct Paper: Codable, UUIDModel {
-	let id: UUID
-	
-	static var idKey = \Paper.id
-}
-
-extension Paper: Filterable {
-	enum CodingKeys: String, CodingKey {
-		case id
-	}
-	
-	static func key<T>(for path: KeyPath<Paper, T>) -> CodingKeys where T : Bindable {
-		switch path {
-		case \Paper.id:
-			return .id
-		default:
-			fatalError("Unknown key path")
-		}
-	}
-}
+//protocol RowModel: Model where PrimaryKey == Int64? {
+//	var id: Int64? { get set }
+//}
+//
+//struct Paper: Codable, UUIDModel {
+//	let id: UUID
+//
+//	static var idKey = \Paper.id
+//}
+//
+//extension Paper: Filterable {
+//	enum CodingKeys: String, CodingKey {
+//		case id
+//	}
+//
+//	static func key<T>(for path: KeyPath<Paper, T>) -> CodingKeys where T : Bindable {
+//		switch path {
+//		case \Paper.id:
+//			return .id
+//		default:
+//			fatalError("Unknown key path")
+//		}
+//	}
+//
+//	static func path(for key: CodingKeys) -> PartialKeyPath<Paper> {
+//		switch key {
+//		case .id: return \.id
+//		}
+//	}
+//}
 
 
 //TODO: Implement SQLRowModel to allow tables that use row id as the primary key

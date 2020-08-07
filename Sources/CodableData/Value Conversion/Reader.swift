@@ -36,12 +36,14 @@ fileprivate class _Reader: Decoder {
 		return [:]
 	}
 	
+	var proxy: Proxy
 	let s: Statement
 	let table: Table
 	
 	var currentColumn: Int32?
 	
 	init(_ s: Statement, _ table: Table) {
+		self.proxy = Proxy(s, isNull: {_ in false })
 		self.s = s
 		self.table = table
 	}
@@ -104,14 +106,15 @@ fileprivate class _Reader: Decoder {
 		}
 		
 		func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-			let i = try index(for: key)
+			
+			decoder.proxy.index = try index(for: key)
 			
 			do {
 				if let U = T.self as? Unbindable.Type {
-					return try U.unbind(from: decoder.s, at: i) as! T
+					return U.unbind(decoder.proxy) as! T
 				} else {
 					assert(decoder.currentColumn == nil)
-					decoder.currentColumn = i
+					decoder.currentColumn = decoder.proxy.index
 					return try T(from: decoder)
 				}
 			} catch {
@@ -155,14 +158,14 @@ fileprivate class _Reader: Decoder {
 				decoder.currentColumn = nil
 			}
 			
-			guard let index = decoder.currentColumn else {
+			guard decoder.currentColumn != nil else {
 				fatalError()
 			}
 			
 			if let U = T.self as? Unbindable.Type {
-				return try U.unbind(from: decoder.s, at: index) as! T
+				return U.unbind(decoder.proxy) as! T
 			} else {
-				let data = try Data.unbind(from: decoder.s, at: index)
+				let data = Data.unbind(decoder.proxy)
 				let d = JSONDecoder()
 				return try d.decode(T.self, from: data)
 			}

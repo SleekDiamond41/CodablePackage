@@ -39,7 +39,9 @@ extension Database {
             return 0
         }
 		
+		let proxy = Proxy(s, isNull: { _ in false })
+		
         // returned table should have exactly one row, one column, value is count of items that matched the query
-        return try Int.unbind(from: s, at: 0)
+		return Int.unbind(proxy)
 	}
 }

@@ -9,7 +9,7 @@
 import Foundation
 import SQLite3
 
-public struct Statement {
+struct Statement {
 	let query: String
 	private(set) var p: OpaquePointer?
 
@@ -73,7 +73,7 @@ extension Statement {
 	
 	func bind(_ value: SQLValue, at index: Int32) throws {
 		switch value {
-		case .text(let str):
+		case .string(let str):
 			let status = Status(sqlite3_bind_text(p, index, NSString(string: str).utf8String, -1, nil))
 			guard status == .ok else {
 				fatalError(String(reflecting: status))
@@ -107,6 +107,9 @@ extension Statement {
 		guard let index = table.columns.firstIndex(where: { $0.name == key }) else {
 			fatalError()
 		}
-		return try T.unbind(from: self, at: Int32(index))
+		var proxy = Proxy(self, isNull: { _ in false })
+		proxy.index = Int32(index)
+		
+		return T.unbind(proxy)
 	}
 }

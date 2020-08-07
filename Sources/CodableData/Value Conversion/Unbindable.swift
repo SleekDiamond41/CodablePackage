@@ -13,139 +13,132 @@ enum UnbindError: Error {
 	case nilFound
 }
 
+public protocol UnbindingProxy {
+	func get() -> Int64
+	func get() -> Double
+	func get() -> String
+	func get() -> Data
+	
+	func isNull() -> Bool
+}
+
+
+extension UUID: Bindable {
+	public var bindingValue: SQLValue {
+		uuidString.bindingValue
+	}
+	
+	public static func unbind(_ proxy: UnbindingProxy) -> UUID {
+		return UUID(uuidString: proxy.get())!
+	}
+}
+
 
 public protocol Unbindable {
-	static func unbind(from s: Statement, at index: Int32!) throws -> Self
+	@inlinable
+	static func unbind(_ proxy: UnbindingProxy) -> Self
 }
 
-extension Optional: Unbindable where Wrapped: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Optional<Wrapped> {
-		guard let index = index else {
+
+extension Optional where Wrapped: Unbindable {
+	
+	public static func unbind(_ proxy: UnbindingProxy) -> Self {
+		if proxy.isNull() {
 			return .none
 		}
-		do {
-			return .some(try Wrapped.unbind(from: s, at: index))
-		} catch {
-			print(String(reflecting: error))
-			return .none
-		}
+		return Wrapped.unbind(proxy)
 	}
 }
 
-extension UUID: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UUID {
-		let str = try String.unbind(from: s, at: index)
-		let id = UUID(uuidString: str)
-		return id!
-	}
-}
-
-extension String: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> String {
-		guard let p = sqlite3_column_text(s.p, index) else {
-			fatalError()
-		}
-		return String(cString: p)
-	}
-}
-
-extension Int64: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Int64 {
-		return sqlite3_column_int64(s.p, index)
-	}
-}
-
-extension Int32: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Int32 {
-		return sqlite3_column_int(s.p, index)
-	}
-}
-
-extension Int16: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Int16 {
-		return Int16(try Int32.unbind(from: s, at: index))
-	}
-}
-
-extension Int8: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Int8 {
-		return Int8(try Int32.unbind(from: s, at: index))
-	}
-}
 
 extension Int: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Int {
-		return Int(try Int64.unbind(from: s, at: index))
+	public static func unbind(_ proxy: UnbindingProxy) -> Int {
+		return Int(proxy.get() as Int64)
 	}
 }
-
-extension UInt64: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UInt64 {
-		let int64 = try Int64.unbind(from: s, at: index)
-		return UInt64(int64 + Int64.max)
+extension Int8: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Int8 {
+		return Int8(proxy.get() as Int64)
 	}
 }
-
-extension UInt32: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UInt32 {
-		return UInt32(try UInt64.unbind(from: s, at: index))
+extension Int16: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Int16 {
+		return Int16(proxy.get() as Int64)
 	}
 }
-
-extension UInt16: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UInt16 {
-		return UInt16(try UInt64.unbind(from: s, at: index))
+extension Int32: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Int32 {
+		return Int32(proxy.get() as Int64)
 	}
 }
-
-extension UInt8: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UInt8 {
-		return UInt8(try UInt64.unbind(from: s, at: index))
+extension Int64: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Int64 {
+		return proxy.get()
 	}
 }
-
 extension UInt: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> UInt {
-		return UInt(try UInt64.unbind(from: s, at: index))
+	public static func unbind(_ proxy: UnbindingProxy) -> UInt {
+		return UInt(proxy.get() as Int64)
+	}
+}
+extension UInt8: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> UInt8 {
+		return UInt8(proxy.get() as Int64)
+	}
+}
+extension UInt16: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> UInt16 {
+		return UInt16(proxy.get() as Int64)
+	}
+}
+extension UInt32: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> UInt32 {
+		return UInt32(proxy.get() as Int64)
+	}
+}
+extension UInt64: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> UInt64 {
+		return UInt64(proxy.get() as Int64)
 	}
 }
 
-extension Double: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Double {
-		return sqlite3_column_double(s.p, index)
-	}
-}
-
-extension Float: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Float {
-		return Float(try Double.unbind(from: s, at: index))
-	}
-}
-
-extension Data: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Data {
-		let length = sqlite3_column_bytes(s.p, index)
-		
-		guard length > 0 else {
-			return Data()
-		}
-		
-		guard let raw = sqlite3_column_blob(s.p, index) else {
-			fatalError()
-		}
-		
-		return Data(bytes: raw, count: Int(length))
-	}
-}
-
-extension Date: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Date {
-		return Date(timeIntervalSince1970: try Double.unbind(from: s, at: index))
-	}
-}
 
 extension Bool: Unbindable {
-	public static func unbind(from s: Statement, at index: Int32!) throws -> Bool {
-		return try Int32.unbind(from: s, at: index) > 0
+	public static func unbind(_ proxy: UnbindingProxy) -> Bool {
+		return (proxy.get() as Int64) != 0
+	}
+}
+
+
+extension String: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> String {
+		return proxy.get()
+	}
+}
+
+
+extension Double: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Double {
+		return proxy.get()
+	}
+}
+extension Float: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Float {
+		return Float(proxy.get() as Double)
+	}
+}
+
+
+extension Data: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Data {
+		return proxy.get()
+	}
+}
+
+
+extension Date: Unbindable {
+	public static func unbind(_ proxy: UnbindingProxy) -> Date {
+		let interval = proxy.get() as Double
+		return Date(timeIntervalSinceReferenceDate: interval)
 	}
 }

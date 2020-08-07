@@ -24,7 +24,7 @@ struct Name: UUIDModel, Codable, Filterable, Equatable {
         case age
     }
 
-    static func key<T>(for path: KeyPath<Name, T>) -> CodingKeys where T : Bindable {
+    static func key(for path: PartialKeyPath<Name>) -> CodingKeys {
         switch path {
         case \Name.id: return .id
         case \Name.first: return .first
@@ -34,4 +34,13 @@ struct Name: UUIDModel, Codable, Filterable, Equatable {
             preconditionFailure()
         }
     }
+	
+	static func path(for key: CodingKeys) -> PartialKeyPath<Name> {
+		switch key {
+		case .id: return \.id
+		case .first: return \.first
+		case .last: return \.last
+		case .age: return \.age
+		}
+	}
 }

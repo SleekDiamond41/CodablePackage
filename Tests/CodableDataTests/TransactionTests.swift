@@ -35,7 +35,7 @@ class TransactionTests: XCTestCase {
 			case releaseDate = "release_date"
 		}
 		
-		static func key<T>(for path: KeyPath<Movie, T>) -> CodingKeys where T : Bindable {
+		static func key(for path: PartialKeyPath<Movie>) -> CodingKeys {
 			switch path {
 			case \Movie.id:
 				return .id
@@ -45,6 +45,14 @@ class TransactionTests: XCTestCase {
 				return .releaseDate
 			default:
 				preconditionFailure("unknown KeyPath!")
+			}
+		}
+		
+		static func path(for key: CodingKeys) -> PartialKeyPath<TransactionTests.Movie> {
+			switch key {
+			case .id: return \.id
+			case .title: return \.title
+			case .releaseDate: return \.releaseDate
 			}
 		}
 	}
@@ -98,7 +106,7 @@ class TransactionTests: XCTestCase {
 				t.save(movies)
 			}
 			
-			let nameResults = try db.get(with: Filter<Name>().sorting(by: \.first))
+			let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
 			let movieResults = try db.get(with: Filter<Movie>())
 			
 			XCTAssertEqual(nameResults, names)
@@ -143,7 +151,7 @@ class TransactionTests: XCTestCase {
 				t.save(movies.first!)
 			}
 			
-			let nameResults = try db.get(with: Filter<Name>().sorting(by: \.first))
+			let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
 			let movieResults = try db.get(with: Filter<Movie>())
 			
 			XCTAssertEqual(nameResults.count, 1)
