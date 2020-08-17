@@ -52,6 +52,10 @@ public struct Transaction: Codable, CustomStringConvertible {
 		}
 	}
 	
+	public mutating func delete<Element>(_ filter: Filter<Element>) where Element: Model & Codable & Filterable {
+		actions.append(Action(query: filter.query, values: filter.bindings))
+	}
+	
 	public mutating func delete<Element>(_ model: Element) where Element: Model & Codable & Filterable {
 		let id = model[keyPath: Element.idKey]
 		let filter = Filter(Element.idKey, is: .equal(to: id))
