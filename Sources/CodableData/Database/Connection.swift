@@ -8,7 +8,8 @@
 
 import Foundation
 import SQLite3
-
+//import Logging
+import os
 
 enum ConnectionError: Error {
     case connectionUnexpectedlyNil
@@ -21,6 +22,7 @@ class Connection {
 
     // MARK: Private Properties
 
+//	private let log: Logger
     private let config: Configuration
     private let fileManager = FileManager()
 
@@ -35,6 +37,7 @@ class Connection {
     init(_ configuration: Configuration) {
 
         self.config = configuration
+//		self.log = Logger(subsystem: "com.the-duct-ape.CodableData", category: "Connection")
     }
 
 
@@ -96,6 +99,7 @@ class Connection {
     }
 
     private func disconnect() throws {
+//		log.critical(<#T##message: Logger.Message##Logger.Message#>, metadata: <#T##Logger.Metadata?#>, source: <#T##String?#>)
 
         guard db != nil else {
             return

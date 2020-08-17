@@ -15,6 +15,11 @@ extension KeyedDecodingContainer {
 	func decode<T: Decodable>(_ value: inout T, forKey key: Key) throws {
 		value = try decode(T.self, forKey: key)
 	}
+	
+	@inlinable
+	func decode<T: Decodable>(_ value: inout Optional<T>, forKey key: Key) throws {
+		value = try decodeIfPresent(T.self, forKey: key)
+	}
 }
 
 
@@ -34,19 +39,6 @@ struct User: UUIDModel, Codable {
 		self.id = id
 		self.firstName = firstName
 		self.age = age
-	}
-	
-	init(from decoder: Decoder) throws {
-		let container = try decoder.container(keyedBy: CodingKeys.self)
-		
-		// required fields
-		try container.decode(&id, forKey: .id)
-		
-		// optional fields
-		try container.decode(&firstName, forKey: .firstName)
-		try container.decode(&age, forKey: .age)
-		try? container.decode(&noColumn, forKey: .noColumn)
-		try? container.decode(&birthday, forKey: .birthday)
 	}
 	
 	enum CodingKeys: String, CodingKey {
@@ -146,7 +138,14 @@ class ReaderTests: XCTestCase {
 	}
 	
 	func test_readNilDate() {
-		let user = User(id: UUID(uuidString: "E621E9F8-C36C-495A-93FC-0C247C3E6E5B")!, firstName: "Johnny")
+		var user = User(id: UUID(uuidString: "E621E9F8-C36C-495A-93FC-0C247C3E6E5B")!, firstName: "Johnny")
+		
+		// create the 'birthday' column
+		user.birthday = Date()
+		try! db.save(user)
+		
+		// save the nil value to the 'birthday' column
+		user.birthday = nil
 		try! db.save(user)
 		
 		let filter = Filter<User>()
