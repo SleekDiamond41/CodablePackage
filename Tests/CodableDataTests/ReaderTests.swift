@@ -28,6 +28,7 @@ struct User: UUIDModel, Codable {
 	var firstName = ""
 	var age = 0
 	var noColumn: Int?
+	var birthday: Date?
 	
 	init(id: UUID, firstName: String, age: Int = 0) {
 		self.id = id
@@ -45,6 +46,7 @@ struct User: UUIDModel, Codable {
 		try container.decode(&firstName, forKey: .firstName)
 		try container.decode(&age, forKey: .age)
 		try? container.decode(&noColumn, forKey: .noColumn)
+		try? container.decode(&birthday, forKey: .birthday)
 	}
 	
 	enum CodingKeys: String, CodingKey {
@@ -52,6 +54,7 @@ struct User: UUIDModel, Codable {
 		case firstName = "first_name"
 		case age
 		case noColumn = "no_column"
+		case birthday
 	}
 }
 
@@ -61,14 +64,11 @@ extension User: Filterable {
 	
 	static func key(for path: PartialKeyPath<User>) -> FilterKey {
 		switch path {
-		case \User.id:
-			return .id
-		case \User.firstName:
-			return .firstName
-		case \User.age:
-			return .age
-		case \User.noColumn:
-			return .noColumn
+		case \User.id: return .id
+		case \User.firstName: return .firstName
+		case \User.age: return .age
+		case \User.noColumn: return .noColumn
+		case \User.birthday: return .birthday
 		default:
 			preconditionFailure("unrecognized KeyPath")
 		}
@@ -80,6 +80,7 @@ extension User: Filterable {
 		case .firstName: return \.firstName
 		case .age: return \.age
 		case .noColumn: return \.noColumn
+		case .birthday: return \.birthday
 		}
 	}
 }
@@ -142,5 +143,18 @@ class ReaderTests: XCTestCase {
 		} catch {
 			XCTFail("inconsistent error throwing '\(String(describing: error))'")
 		}
+	}
+	
+	func test_readNilDate() {
+		let user = User(id: UUID(uuidString: "E621E9F8-C36C-495A-93FC-0C247C3E6E5B")!, firstName: "Johnny")
+		try! db.save(user)
+		
+		let filter = Filter<User>()
+		let result = (try! db.get(with: filter)).first!
+		
+		// sanity check that we found the correct User instance
+		assert(result.id == user.id)
+		
+		XCTAssertNil(result.birthday)
 	}
 }

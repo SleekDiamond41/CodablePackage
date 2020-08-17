@@ -36,16 +36,18 @@ fileprivate class _Reader: Decoder {
 		return [:]
 	}
 	
-	var proxy: Proxy
+	var proxy: Proxy!
 	let s: Statement
 	let table: Table
 	
 	var currentColumn: Int32?
 	
 	init(_ s: Statement, _ table: Table) {
-		self.proxy = Proxy(s, isNull: {_ in false })
 		self.s = s
 		self.table = table
+		self.proxy = Proxy(s, isNull: { i in
+			self.isNull(at: i)
+		})
 	}
 	
 	func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
@@ -58,6 +60,11 @@ fileprivate class _Reader: Decoder {
 	
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
 		return SingleValueContainer(self)
+	}
+	
+	private func isNull(at index: Int32) -> Bool {
+		let type = ColumnType(sqlite3_column_type(s.p, index))
+		return type == nil
 	}
 	
 	
@@ -88,21 +95,7 @@ fileprivate class _Reader: Decoder {
 		func decodeNil(forKey key: Key) throws -> Bool {
 			let i = try index(for: key)
 			
-			let type = ColumnType(sqlite3_column_type(decoder.s.p, i))
-			return type == nil
-			
-//			do {
-//				//FIXME: need a way to check for nil values before knowing what I'm supposed to convert it to
-//				_ = try Double.unbind(from: decoder.s, at: index)
-//				return false
-//
-//			} catch {
-//				return true
-//			}
-			
-//			return 0.0 == (try Double.unbind(from: decoder.s, at: index))
-//			ColumnType(String(cString: sqlite3_column_decltype(s.p, i)))
-//			return false
+			return decoder.isNull(at: i)
 		}
 		
 		func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {

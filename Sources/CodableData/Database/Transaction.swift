@@ -81,7 +81,7 @@ public struct Transaction: Codable, CustomStringConvertible {
 		status = begin.step()
 		
 		guard status == .done else {
-			preconditionFailure("okay how'd I mess up 'BEGIN TRANSACTION'")
+			preconditionFailure("okay how'd we mess up 'BEGIN TRANSACTION'")
 		}
 		
 		defer {
