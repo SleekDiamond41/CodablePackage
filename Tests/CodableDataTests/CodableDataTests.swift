@@ -263,4 +263,37 @@ final class CodableDataTests: XCTestCase {
 		XCTAssertEqual(result.name, model.name)
 		XCTAssertEqual(result.key, model.key)
 	}
+	
+	func testDeletingWithFilter() {
+		let name = Name(id: UUID(), first: "Johnny", last: "Appleseed")
+		let filter = Filter<Name>(\.id, is: .equal(to: name.id))
+		
+		do {
+			// test deleting straight through database
+			try db.save(name)
+			
+			// make sure item was saved
+			XCTAssertEqual(try db.get(with: filter).count, 1)
+			
+			try! db.delete(with: filter)
+			XCTAssertEqual(try db.get(with: filter).count, 0)
+			
+		} catch {
+			XCTFail(String(describing: error))
+		}
+		
+		do {
+			// test deleting in transaction
+			try db.save(name)
+			
+			// make sure item was saved
+			XCTAssertEqual(try db.get(with: filter).count, 1)
+			
+			try! db.delete(with: filter)
+			XCTAssertEqual(try db.get(with: filter).count, 0)
+			
+		} catch {
+			XCTFail(String(describing: error))
+		}
+	}
 }
