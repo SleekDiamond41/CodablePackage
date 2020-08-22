@@ -162,4 +162,25 @@ class TransactionTests: XCTestCase {
 			XCTFail(String(describing: error))
 		}
 	}
+	
+	func testDeleteWithFilter() {
+		let id = UUID()
+		
+		let name = Name(id: id, first: "Johnny", last: "Appleseed")
+		
+		// gotta save things to the database first
+		// so their tables can be generated
+		
+		try! db.save(name)
+		
+		let filter = Filter<Name>(\.id, is: .in([id]))
+		
+		do {
+			try db.transact { (t) in
+				t.delete(filter)
+			}
+		} catch {
+			XCTFail(String(describing: error))
+		}
+	}
 }

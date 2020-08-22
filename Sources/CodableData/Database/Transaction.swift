@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 
 extension Database {
@@ -27,10 +28,17 @@ public struct Transaction: Codable, CustomStringConvertible {
 	
 	private var actions = [Action]()
 	
+	private func message(for action: Action) -> String {
+		return """
+		\(action.query)
+			- Values: \(action.values)
+		"""
+	}
+	
 	public var description: String {
 		"""
 		BEGIN TRANSACTION;
-		\(actions.map { $0.query }.joined(separator: "\n"))
+		\(actions.map { message(for: $0) })
 		END TRANSACTION;
 		"""
 	}
@@ -53,7 +61,7 @@ public struct Transaction: Codable, CustomStringConvertible {
 	}
 	
 	public mutating func delete<Element>(_ filter: Filter<Element>) where Element: Model & Codable & Filterable {
-		actions.append(Action(query: filter.query, values: filter.bindings))
+		actions.append(Action(query: .delete(filter), values: filter.bindings))
 	}
 	
 	public mutating func delete<Element>(_ model: Element) where Element: Model & Codable & Filterable {
@@ -78,45 +86,53 @@ public struct Transaction: Codable, CustomStringConvertible {
 		
 		var status = Status.error
 		
-		var begin = Statement("BEGIN TRANSACTION;")
-		try! begin.prepare(in: db.connection.db)
-		defer { begin.finalize() }
-		
-		status = begin.step()
-		
-		guard status == .done else {
-			preconditionFailure("okay how'd we mess up 'BEGIN TRANSACTION'")
-		}
-		
-		defer {
-			// make sure we end a transaction no matter what
-			// (assuming we successfully began the transaction)
-			var end = Statement("END TRANSACTION;")
-			try! end.prepare(in: db.connection.db)
-			defer { end.finalize() }
+		func execute(_ s: String) {
+			var begin = Statement(s)
+			try! begin.prepare(in: db.connection.db)
+			defer { begin.finalize() }
 			
-			status = end.step()
+			status = begin.step()
 			
 			guard status == .done else {
-				preconditionFailure()
+				preconditionFailure("we messed up while performing '\(s)'")
 			}
 		}
 		
-		for action in actions {
-			
-			var s = Statement(action.query)
-			try s.prepare(in: db.connection.db)
-			defer { s.finalize() }
-			
-			for (offset, value) in action.values.enumerated() {
-				try s.bind(value, at: Int32(offset) + 1)
+		// write a thing
+		execute("BEGIN IMMEDIATE TRANSACTION;")
+		
+		do {
+			for action in actions {
+				
+				var s = Statement(action.query)
+				try s.prepare(in: db.connection.db)
+				defer { s.finalize() }
+				
+				for (offset, value) in action.values.enumerated() {
+					try s.bind(value, at: Int32(offset) + 1)
+				}
+				
+				status = s.step()
+				
+				guard status == .done else {
+					preconditionFailure()
+				}
+				
+				execute("END TRANSACTION;")
 			}
+		} catch {
+			print("""
+			ERROR while executing transaction:
+			\(description)
+			Error Message: \(String(describing: error))
+			""")
 			
-			status = s.step()
+			// we had an issue during the transaction,
+			// so we roll back any changes made during this period
+			execute("END TRANSACTION;")
+			execute("ROLLBACK;")
 			
-			guard status == .done else {
-				preconditionFailure()
-			}
+			throw error
 		}
 	}
 }
