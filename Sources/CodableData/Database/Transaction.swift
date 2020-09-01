@@ -117,9 +117,10 @@ public struct Transaction: Codable, CustomStringConvertible {
 				guard status == .done else {
 					preconditionFailure()
 				}
-				
-				execute("END TRANSACTION;")
 			}
+			
+			execute("END TRANSACTION;")
+			
 		} catch {
 			print("""
 			ERROR while executing transaction:
