@@ -118,6 +118,17 @@ class Connection {
 
     private func deleteFile() throws {
 
-        try fileManager.removeItem(at: config.url)
+		do {
+			try fileManager.removeItem(at: config.url)
+		} catch let error as NSError {
+			if error.code == NSFileNoSuchFileError {
+				// the file is already gone, our job is done
+				// without having to do it ourselves.
+				// No reason to throw an error.
+				return
+			}
+			
+			throw error
+		}
     }
 }

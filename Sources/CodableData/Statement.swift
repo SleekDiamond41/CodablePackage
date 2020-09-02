@@ -18,7 +18,8 @@ struct Statement {
 	}
 }
 
-public enum SqliteError: Error {
+public enum SqliteError: Error, Equatable {
+	case diskIO
 	case unknown(String)
 }
 
@@ -37,6 +38,9 @@ fileprivate func nativeError(from sqliteError: String, query: String) -> Error {
 	}
 	if let range = sqliteError.range(of: ": syntax error") {
 		return PreparationError.syntax(String(sqliteError[..<range.lowerBound]), query: query)
+	}
+	if sqliteError == "disk I/O error" {
+		return SqliteError.diskIO
 	}
 	return SqliteError.unknown(sqliteError)
 }
