@@ -75,7 +75,7 @@ fileprivate class _Reader: Decoder {
 		
 		private var values: [String: Decodable] = [:]
 		
-		let decoder: _Reader
+		unowned let decoder: _Reader
 		
 		init(_ decoder: _Reader) {
 			self.decoder = decoder
@@ -136,7 +136,7 @@ fileprivate class _Reader: Decoder {
 	class SingleValueContainer: SingleValueDecodingContainer {
 		var codingPath: [CodingKey] = []
 		
-		let decoder: _Reader
+		unowned let decoder: _Reader
 		
 		init(_ decoder: _Reader) {
 			self.decoder = decoder

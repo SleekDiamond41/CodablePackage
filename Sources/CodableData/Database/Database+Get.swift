@@ -66,7 +66,7 @@ extension Database {
 			
 			do {
 				return try _get(filter: copy)
-			} catch PreparationError.noSuchColumn(let column) {
+			} catch PreparationError.noSuchColumn(_) {
 //				guard copy.usesColumns else {
 //					break
 //				}
