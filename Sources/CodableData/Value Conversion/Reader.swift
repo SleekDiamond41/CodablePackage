@@ -45,7 +45,7 @@ fileprivate class _Reader: Decoder {
 	init(_ s: Statement, _ table: Table) {
 		self.s = s
 		self.table = table
-		self.proxy = Proxy(s, isNull: { i in
+		self.proxy = Proxy(s, isNull: { [unowned self] i in
 			self.isNull(at: i)
 		})
 	}
