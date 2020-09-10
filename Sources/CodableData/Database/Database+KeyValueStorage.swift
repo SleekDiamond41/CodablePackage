@@ -32,7 +32,7 @@ public final class KeyValueStorage {
 			try db.save(pair)
 			
 		} catch {
-			preconditionFailure(String(describing: error))
+			assertionFailure(String(describing: error))
 		}
 	}
 	

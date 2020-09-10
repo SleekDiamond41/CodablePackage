@@ -37,7 +37,7 @@ public class Database {
         filename: String = "Data") throws {
 
         let config = Configuration(directory: dir, filename: filename)
-		print(dir.absoluteString)
+		debugPrint(dir.absoluteString)
 		self.dir = config.directory
         self.connection = Connection(config)
 		

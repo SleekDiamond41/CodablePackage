@@ -36,23 +36,29 @@ extension String {
 		return "SELECT COUNT(*) FROM \(Table.name(T.tableName)) \(filter.query);"
 	}
 	
-	static func distinct<T>(_ : T.Type, column: String, direction: SortRule<T>.Direction?) -> String where T: Model {
+	static func distinct<T>(_ filter: Filter<T>, column: String) -> String where T: Model {
 		let table = Table.name(T.tableName)
-		let selection = "SELECT DISTINCT \(column) FROM \(table)"
+		var selection = "SELECT DISTINCT \(column) FROM \(table)"
+		let clause = filter.query
 		
-		if let direction = direction {
-			let sort = (direction == .ascending ? "ASC" : "DESC")
-			
-			return selection + " ORDER BY \(column) \(sort);"
+		if !clause.isEmpty {
+			selection += " " + clause
 		}
 		
 		return selection + ";"
 	}
 	
-	static func distinctCount<T>(_ : T.Type, columns: [String]) -> String where T: Model {
+	static func distinctCount<T>(_ filter: Filter<T>, columns: [String]) -> String where T: Model {
 		let paths = columns.joined(separator: ", ")
 		let table = Table.name(T.tableName)
+		let clause = filter.query
 		
-		return "SELECT COUNT(DISTINCT \(paths)) FROM \(table);"
+		var text = "SELECT COUNT(DISTINCT \(paths)) FROM \(table)"
+		
+		if !clause.isEmpty {
+			text += " " + clause
+		}
+		
+		return text + ";"
 	}
 }

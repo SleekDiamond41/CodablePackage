@@ -10,14 +10,19 @@ import Foundation
 
 extension Database {
 	
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>, by direction: SortRule<Element>.Direction? = nil) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	@inlinable
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+		return try distinct(path, using: Filter<Element>())
+	}
+	
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
 		guard try table(Element.tableName) != nil else {
 			return []
 		}
 		
 		let column = Element.key(for: path).stringValue
 		
-		var s = Statement(.distinct(Element.self, column: column, direction: direction))
+		var s = Statement(.distinct(filter, column: column))
 		
 		try s.prepare(in: connection.db)
 		
