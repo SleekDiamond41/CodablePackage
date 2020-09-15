@@ -55,13 +55,6 @@ class FilterTests: XCTestCase {
 		""")
         XCTAssertEqual(filter.bindings.count, 4)
     }
-	
-//	func test_inValues() {
-//		let filter = Filter<Name>().and(\.first, is: .starts(with: "m%"))
-//			.and(\.age, is: .in([]))
-//
-//		print(filter.description)
-//	}
 
     func testDescription() {
         XCTAssertEqual(Filter<Name>().description, """

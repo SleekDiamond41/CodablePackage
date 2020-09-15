@@ -31,7 +31,6 @@ extension Database {
         let status = s.step()
 		
         guard status == .row else {
-            print(String(reflecting: status))
             return 0
         }
 		
