@@ -28,6 +28,7 @@ public struct Transaction: Codable, CustomStringConvertible {
 	enum Action: Codable {
 		case delete(table: String, AnyFilter)
 		case save(table: String, values: [(String, SQLValue)])
+		case partial(AnyUpdate)
 		
 		init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -43,8 +44,11 @@ public struct Transaction: Codable, CustomStringConvertible {
 			case .save:
 				let table = try container.decode(String.self, forKey: .table)
 				let values = try container.decode([Value].self, forKey: .values)
-				
 				self = .save(table: table, values: values.map { ($0.string, $0.value) })
+				
+			case .partial:
+				let batch = try container.decode(AnyUpdate.self, forKey: .values)
+				self = .partial(batch)
 			}
 		}
 		
@@ -61,6 +65,10 @@ public struct Transaction: Codable, CustomStringConvertible {
 				try container.encode(Case.save, forKey: .case)
 				try container.encode(table, forKey: .table)
 				try container.encode(values.map { Value(string: $0.0, value: $0.1) }, forKey: .values)
+				
+			case let .partial(update):
+				try container.encode(Case.partial, forKey: .case)
+				try container.encode(update, forKey: .values)
 			}
 		}
 		
@@ -72,6 +80,7 @@ public struct Transaction: Codable, CustomStringConvertible {
 		private enum Case: String, Codable {
 			case save
 			case delete
+			case partial
 		}
 		
 		enum CodingKeys: String, CodingKey {
@@ -97,6 +106,14 @@ public struct Transaction: Codable, CustomStringConvertible {
 			return """
 			SAVE TO \(table):
 				- Values: \(values)
+			"""
+		case .partial(let update):
+			return """
+			UPDATE \(update.table)
+			- Values: \(update.actions.map {
+				$0.key + " = " + $0.value.description
+			})
+			- Query: \(update.filter.query)
 			"""
 		}
 	}
@@ -154,6 +171,29 @@ public struct Transaction: Codable, CustomStringConvertible {
 		delete(Filter(key, is: .in(ids)))
 	}
 	
+	public mutating func update(_ batch: AnyUpdate) {
+		actions.append(.partial(batch))
+	}
+	
+	@inlinable
+	public mutating func update<S>(_ batches: S) where S: Sequence, S.Element == AnyUpdate {
+		for batch in batches {
+			update(batch)
+		}
+	}
+	
+	@inlinable
+	public mutating func update<Element>(_ batch: Update<Element>) {
+		update(AnyUpdate(batch))
+	}
+	
+	@inlinable
+	public mutating func update<S, Element>(_ batches: S) where S: Sequence, S.Element == Update<Element> {
+		for batch in batches {
+			update(batch)
+		}
+	}
+	
 	internal mutating func execute(in db: Database) throws {
 		
 		var status = Status.error
@@ -203,6 +243,9 @@ public struct Transaction: Codable, CustomStringConvertible {
 			
 		case let .delete(table: table, filter):
 			try db._delete(table, query: filter.query, bindings: filter.bindings)
+			
+		case let .partial(batch):
+			try db.update(batch)
 		}
 	}
 }

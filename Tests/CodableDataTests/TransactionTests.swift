@@ -75,7 +75,7 @@ class TransactionTests: XCTestCase {
 	}
 	
 	
-	func testSave() {
+	func testSave() throws {
 		
 		let id = UUID()
 		
@@ -88,45 +88,20 @@ class TransactionTests: XCTestCase {
 			Movie(id: UUID(), title: "The Dark Knight", releaseDate: Date().addingTimeInterval(-(60 * 60 * 24 * 120))),
 		]
 		
-		// gotta save things to the database first
-		// so their tables can be generated
-		// (will have to fix that in the future)
-		
-		do {
-			try db.save(names.first!)
-			try db.delete(names.first!)
+		try db.transact { (t) in
 			
-			try db.save(movies.first!)
-			try db.delete(movies.first!)
-		} catch let ConnectionError.statusCode(expected: expected, actual: actual) {
-			XCTFail("expected status '\(expected)' but found '\(actual)'")
-			return
-		} catch {
-			XCTFail(error.localizedDescription)
-			return
+			t.save(names)
+			t.save(movies)
 		}
 		
+		let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
+		let movieResults = try db.get(with: Filter<Movie>())
 		
-		do {
-			
-			try db.transact { (t) in
-				
-				t.save(names)
-				t.save(movies)
-			}
-			
-			let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
-			let movieResults = try db.get(with: Filter<Movie>())
-			
-			XCTAssertEqual(nameResults, names)
-			XCTAssertEqual(movieResults, movies)
-			
-		} catch {
-			XCTFail(String(describing: error))
-		}
+		XCTAssertEqual(nameResults, names)
+		XCTAssertEqual(movieResults, movies)
 	}
 	
-	func testDelete() {
+	func testDelete() throws {
 		let id = UUID()
 		
 		let names = [
@@ -138,32 +113,26 @@ class TransactionTests: XCTestCase {
 			Movie(id: UUID(), title: "The Dark Knight", releaseDate: Date().addingTimeInterval(-(60 * 60 * 24 * 120))),
 		]
 		
-		do {
+		try db.transact { (t) in
 			
-			try db.transact { (t) in
-				
-				t.save(names)
-				t.save(movies)
-				
-				t.delete(names.first!)
-				t.delete(movies.first!)
-				
-				t.save(movies.first!)
-			}
+			t.save(names)
+			t.save(movies)
 			
-			let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
-			let movieResults = try db.get(with: Filter<Movie>())
+			t.delete(names.first!)
+			t.delete(movies.first!)
 			
-			XCTAssertEqual(nameResults.count, 1)
-			XCTAssertEqual(nameResults.first, names[1])
-			XCTAssertEqual(movieResults, movies)
-			
-		} catch {
-			XCTFail(String(describing: error))
+			t.save(movies.first!)
 		}
+		
+		let nameResults = try db.get(with: Filter<Name>().sort(by: \.first))
+		let movieResults = try db.get(with: Filter<Movie>())
+		
+		XCTAssertEqual(nameResults.count, 1)
+		XCTAssertEqual(nameResults.first, names[1])
+		XCTAssertEqual(movieResults, movies)
 	}
 	
-	func testDeleteWithFilter() {
+	func testDeleteWithFilter() throws {
 		let id = UUID()
 		
 		let name = Name(id: id, first: "Johnny", last: "Appleseed")
@@ -171,16 +140,28 @@ class TransactionTests: XCTestCase {
 		// gotta save things to the database first
 		// so their tables can be generated
 		
-		try! db.save(name)
+		try db.save(name)
 		
 		let filter = Filter<Name>(\.id, is: .in([id]))
 		
-		do {
-			try db.transact { (t) in
-				t.delete(filter)
-			}
-		} catch {
-			XCTFail(String(describing: error))
+		try db.transact { (t) in
+			t.delete(filter)
 		}
+	}
+	
+	func testUpdateBeforeAddingModels() throws {
+		let firstName = "Jimmy"
+		let batch = Update<Name>(UUID())
+			.set(\.first, to: firstName)
+		
+		try db.transact {
+			$0.update(batch)
+		}
+		
+		let results = try db.get(with: Filter<Name>())
+		
+		// we should get back 0 results, because we can't update
+		// elements that don't exist in the database
+		XCTAssertEqual(results.count, 0)
 	}
 }

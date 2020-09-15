@@ -311,6 +311,43 @@ extension Filter {
 			+ (FilterReader.sorting(from: self)?.bindingValues ?? [])
 			+ (FilterReader.limit(from: self)?.bindingValues ?? [])
 	}
+	
+	var updateQuery: (String, [SQLValue]) {
+		let clause = FilterReader.clause(from: self).map {
+			("WHERE " + $0.query, $0.bindingValues)
+		} ?? ("", [])
+		
+		// TODO: find a way to display "helpful tips" to consumers
+		// for example, if we're in DEBUG and they used a Sort without
+		// a Limit, pop up some kind of alert to let them know that
+		// behaves weird
+		
+		guard let limit = FilterReader.limit(from: self) else {
+			// SQLite gets mad if you use a Sort without a Limit
+			// for partial updates, so no need to check for a Sort
+			// if we don't have a Limit.
+			// Or maybe we should default to Int.max if there's no Limit
+			// so consumers get the behavior they would expect?
+			return clause
+		}
+		
+		guard let sort = FilterReader.sorting(from: self) else {
+			
+			return (clause.0 + " " + limit.query,
+					clause.1 + limit.bindingValues)
+		}
+		
+		let query = [
+			clause.0,
+			sort.query,
+			limit.query,
+		]
+		.joined(separator: " ")
+		
+		let bindings = clause.1 + sort.bindingValues + limit.bindingValues
+		
+		return (query, bindings)
+	}
 }
 
 extension Filter: CustomStringConvertible {
