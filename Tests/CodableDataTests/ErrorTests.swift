@@ -38,4 +38,27 @@ class ErrorTests: XCTestCase {
 			}
 		}
 	}
+	
+	func testNoSuchTableError_onDelete() {
+		let filter = Filter<Name>()
+		XCTAssertNoThrow(try db.delete(with: filter))
+		
+		XCTAssertNoThrow(try db.transact {
+			$0.delete(filter)
+		})
+	}
+	
+	func testNoSuchTableError_onSave() {
+		let name = Name(id: UUID(), first: "Johnny", last: "Appleseed")
+		
+		XCTAssertNoThrow(try db.save(name))
+	}
+	
+	func testNoSuchTableError_onSaveTransaction() {
+		let name = Name(id: UUID(), first: "Johnny", last: "Appleseed")
+		
+		XCTAssertNoThrow(try db.transact {
+			$0.save(name)
+		})
+	}
 }

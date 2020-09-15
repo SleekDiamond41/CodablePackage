@@ -149,7 +149,10 @@ class ReaderTests: XCTestCase {
 		try! db.save(user)
 		
 		let filter = Filter<User>()
-		let result = (try! db.get(with: filter)).first!
+		guard let result = try! db.get(with: filter).first else {
+			XCTFail("expected to have at least one result")
+			return
+		}
 		
 		// sanity check that we found the correct User instance
 		assert(result.id == user.id)

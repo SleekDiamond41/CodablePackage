@@ -73,35 +73,26 @@ extension String {
 	func sqlFormatted() -> String {
 		var result = self
 		
-		// Playgrounds use this prefix followed by some numbers then "." THEN the object name. Remove prefix so tables will be named consistently across multiple executions
-		if result.hasPrefix("__lldb_expr_") {
-			let range = result.range(of: ".")!
-			result.removeSubrange(result.startIndex...range.lowerBound)
-		}
+		#if targetEnvironment(simulator)
+		// Playgrounds use this prefix followed by some numbers then "."
+		// THEN the object name. I.e. "__lldb_expr_29.MyObject".
+		//
+		// Remove prefix so tables will be named consistently
+		// across multiple executions of the Playground
+		result = result.replacingOccurrences(of: #"__lldb_expr_\d*\."#, with: "", options: [.regularExpression])
+		#endif
 		
-		// using String(reflecting: Model.self) returns "Model.type", so remove the ".type" if it's there
-//		if result.hasSuffix(".type") {
-//			var i = result.endIndex
-//			result.formIndex(&i, offsetBy: -5)
-//			result.removeSubrange(i...)
-//		}
+		// remove double quotes (") from the beginning and end of the table name
+		// this step means that this method can be called on a string that is already
+		// correctly formatted and still produce the same result
+		result = result.trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
 		
-		// remove leading spaces
-		while result.hasPrefix(" ") {
-			result.removeFirst()
-		}
+		// replace double quotes (") from the middle of the table name
+		// this protects against SQL injection attacks
+		result = result.replacingOccurrences(of: "\"", with: "'")
 		
-		// remove trailing spaces
-		while result.hasSuffix(" ") {
-			result.removeLast()
-		}
-		
-		// convert existing double quotes to single quotes,
-		// surround the whole thing with double quotes so SQLite will like it better
-		// also should help defend against SQL injection, although that's
-		// really not a goal of this project
-		return "\"" + result.replacingOccurrences(of: "\"", with: "'") + "\""
-		
+		// surround the whole thing with double quotes so SQLite will treat
+		// this as just a String, even if it contains special characters
+		return "\"" + result + "\""
 	}
-	
 }

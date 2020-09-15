@@ -10,15 +10,7 @@ import Foundation
 
 extension Database {
 	
-	@inlinable
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int64 where Element: Model & Filterable, T: Bindable & Unbindable {
-		return try distinctCount(path, using: Filter<Element>())
-	}
-	
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int64 where Element: Model & Filterable, T: Bindable & Unbindable {
-		guard try table(Element.tableName) != nil else {
-			return 0
-		}
+	private func _distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
 		
 		let column = Element.key(for: path).stringValue
 		
@@ -38,6 +30,23 @@ extension Database {
 		}
 		
 		let proxy = Proxy(s, isNull: { _ in false })
-		return Int64.unbind(proxy)
+		return Int.unbind(proxy)
+	}
+	
+	@inlinable
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+		return try distinctCount(path, using: Filter<Element>())
+	}
+	
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+		
+		do {
+			// make sure table exists
+			_ = try table(Element.tableName)
+			return try _distinctCount(path, using: filter)
+			
+		} catch PreparationError.noSuchTable {
+			return 0
+		}
 	}
 }

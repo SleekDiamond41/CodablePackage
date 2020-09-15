@@ -92,11 +92,20 @@ class TransactionTests: XCTestCase {
 		// so their tables can be generated
 		// (will have to fix that in the future)
 		
-		try! db.save(names.first!)
-		try! db.delete(names.first!)
+		do {
+			try db.save(names.first!)
+			try db.delete(names.first!)
+			
+			try db.save(movies.first!)
+			try db.delete(movies.first!)
+		} catch let ConnectionError.statusCode(expected: expected, actual: actual) {
+			XCTFail("expected status '\(expected)' but found '\(actual)'")
+			return
+		} catch {
+			XCTFail(error.localizedDescription)
+			return
+		}
 		
-		try! db.save(movies.first!)
-		try! db.delete(movies.first!)
 		
 		do {
 			
@@ -128,15 +137,6 @@ class TransactionTests: XCTestCase {
 		let movies = [
 			Movie(id: UUID(), title: "The Dark Knight", releaseDate: Date().addingTimeInterval(-(60 * 60 * 24 * 120))),
 		]
-		
-		// gotta save things to the database first
-		// so their tables can be generated
-		
-		try! db.save(names.first!)
-		try! db.delete(names.first!)
-		
-		try! db.save(movies.first!)
-		try! db.delete(movies.first!)
 		
 		do {
 			

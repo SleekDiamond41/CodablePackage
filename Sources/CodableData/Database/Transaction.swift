@@ -20,18 +20,85 @@ extension Database {
 
 public struct Transaction: Codable, CustomStringConvertible {
 	
-	private struct Action: Codable {
+	struct AnyFilter: Codable {
 		let query: String
-		let values: [SQLValue]
+		let bindings: [SQLValue]
+	}
+	
+	enum Action: Codable {
+		case delete(table: String, AnyFilter)
+		case save(table: String, values: [(String, SQLValue)])
+		
+		init(from decoder: Decoder) throws {
+			let container = try decoder.container(keyedBy: CodingKeys.self)
+			
+			let temp = try container.decode(Case.self, forKey: .case)
+			
+			switch temp {
+			case .delete:
+				let table = try container.decode(String.self, forKey: .table)
+				let filter = try container.decode(AnyFilter.self, forKey: .filter)
+				self = .delete(table: table, filter)
+				
+			case .save:
+				let table = try container.decode(String.self, forKey: .table)
+				let values = try container.decode([Value].self, forKey: .values)
+				
+				self = .save(table: table, values: values.map { ($0.string, $0.value) })
+			}
+		}
+		
+		func encode(to encoder: Encoder) throws {
+			var container = encoder.container(keyedBy: CodingKeys.self)
+			
+			switch self {
+			case let .delete(table: table, filter):
+				try container.encode(Case.delete, forKey: .case)
+				try container.encode(table, forKey: .table)
+				try container.encode(filter, forKey: .filter)
+				
+			case let .save(table: table, values: values):
+				try container.encode(Case.save, forKey: .case)
+				try container.encode(table, forKey: .table)
+				try container.encode(values.map { Value(string: $0.0, value: $0.1) }, forKey: .values)
+			}
+		}
+		
+		private struct Value: Codable {
+			let string: String
+			let value: SQLValue
+		}
+		
+		private enum Case: String, Codable {
+			case save
+			case delete
+		}
+		
+		enum CodingKeys: String, CodingKey {
+			case `case`
+			
+			case table
+			case filter
+			case values
+		}
 	}
 	
 	private var actions = [Action]()
 	
 	private func message(for action: Action) -> String {
-		return """
-		\(action.query)
-			- Values: \(action.values)
-		"""
+		switch action {
+		case let .delete(table: table, filter):
+			return """
+			DELETE FROM \(table):
+			\(filter.query)
+			- Values: \(filter.bindings)
+			"""
+		case let .save(table: table, values: values):
+			return """
+			SAVE TO \(table):
+				- Values: \(values)
+			"""
+		}
 	}
 	
 	public var description: String {
@@ -45,40 +112,46 @@ public struct Transaction: Codable, CustomStringConvertible {
 	internal init() { }
 	
 	public mutating func save<Element>(_ model: Element) where Element: Model & Codable & Filterable {
-		let values = try! Writer<Element>.values(for: model)
+		let values = try! Writer.values(for: model)
 		
-		let query = String.save(Element.self, values)
-		let vals = values.map { $0.value.bindingValue }
-		
-		actions.append(Action(query: query, values: vals))
+		actions.append(.save(table: Element.tableName, values: values))
 	}
 	
 	public mutating func save<C>(_ models: C) where C: Collection, C.Element: Model & Codable & Filterable {
-		for model in models {
-			save(model)
-		}
+		let table = C.Element.tableName
+		
+		actions.append(contentsOf: models.map {
+			let values = try! Writer.values(for: $0)
+			return .save(table: table, values: values)
+		})
 	}
 	
 	public mutating func delete<Element>(_ filter: Filter<Element>) where Element: Model & Codable & Filterable {
-		actions.append(Action(query: .delete(filter), values: filter.bindings))
+		actions.append(.delete(table: Element.tableName, AnyFilter(query: filter.query, bindings: filter.bindings)))
 	}
 	
 	public mutating func delete<Element>(_ model: Element) where Element: Model & Codable & Filterable {
-		let id = model[keyPath: Element.idKey]
-		let filter = Filter(Element.idKey, is: .equal(to: id))
+		let key = Element.idKey
+		let id = model[keyPath: key]
+		let filter = Filter(key, is: .equal(to: id))
 		
-		let query = String.delete(filter)
-		
-		// it's a little sloppy to just hardcode in the assumption that there will
-		// be exactly one ? placeholder in the statement, but since we're making
-		// the Filter in this same function it feels reasonable
-		actions.append(Action(query: query, values: [id.bindingValue]))
+		delete(filter)
 	}
 	
 	public mutating func delete<C>(_ models: C) where C: Collection, C.Element: Model & Codable & Filterable {
-		for model in models {
-			delete(model)
+		
+		guard !models.isEmpty else {
+			// without this check, sending an empty array
+			// would delete everything from the relevant table
+			return
 		}
+		
+		let key = C.Element.idKey
+		let ids = models.map {
+			$0[keyPath: key]
+		}
+		
+		delete(Filter(key, is: .in(ids)))
 	}
 	
 	internal mutating func execute(in db: Database) throws {
@@ -102,20 +175,7 @@ public struct Transaction: Codable, CustomStringConvertible {
 		
 		do {
 			for action in actions {
-				
-				var s = Statement(action.query)
-				try s.prepare(in: db.connection.db)
-				defer { s.finalize() }
-				
-				for (offset, value) in action.values.enumerated() {
-					try s.bind(value, at: Int32(offset) + 1)
-				}
-				
-				status = s.step()
-				
-				guard status == .done else {
-					preconditionFailure()
-				}
+				try perform(action, in: db)
 			}
 			
 			execute("END TRANSACTION;")
@@ -133,6 +193,16 @@ public struct Transaction: Codable, CustomStringConvertible {
 			execute("ROLLBACK;")
 			
 			throw error
+		}
+	}
+	
+	private func perform(_ action: Action, in db: Database) throws {
+		switch action {
+		case let .save(table: table, values: vals):
+			try db._save(tableName: table, values: vals)
+			
+		case let .delete(table: table, filter):
+			try db._delete(table, query: filter.query, bindings: filter.bindings)
 		}
 	}
 }

@@ -23,7 +23,7 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE \"age\" > ? AND \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
-        let other = Filter<Name>(\.first, is: .exactly("Arrington"))
+        let other = Filter<Name>(\.first, is: .exactly("Appleseed"))
 			.and(\.last, is: .ends(with: "example"))
 
         filter = filter.and(other)
@@ -46,7 +46,7 @@ class FilterTests: XCTestCase {
         XCTAssertEqual(filter.query, "WHERE \"age\" > ? OR \"age\" < ?")
         XCTAssertEqual(filter.bindings.count, 2)
 
-        let other = Filter<Name>(\.first, is: .exactly("Arrington"))
+        let other = Filter<Name>(\.first, is: .exactly("Appleseed"))
 			.or(\.last, is: .ends(with:"example"))
 
         filter = filter.or(other)
@@ -68,9 +68,9 @@ class FilterTests: XCTestCase {
         Filter<Name>:
         """)
 
-        let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
+        let filter = Filter<Name>(\.last, is: .notEqual(to: "Appleseed"))
             .or(Filter(\.age, is: .greater(than: 20))
-                .and(\.first, is: .exactly("Michael")))
+                .and(\.first, is: .exactly("Johnny")))
             .and(\.age, is: .less(than: 40))
             .or(Filter(\.age, is: .less(than: 40)))
 			.sort(by: \.last, .ascending)
@@ -78,14 +78,14 @@ class FilterTests: XCTestCase {
 			.limit(15, page: 3)
 		
         XCTAssertEqual(filter.description, """
-        Filter<Name>: WHERE ((last IS NOT 'Arrington') OR (age IS GREATER THAN 20 AND first IS EXACTLY 'Michael') AND age IS LESS THAN 40) OR (age IS LESS THAN 40) ORDER BY "last" ASC, "age" DESC LIMIT 15 OFFSET 45
+        Filter<Name>: WHERE ((last IS NOT 'Appleseed') OR (age IS GREATER THAN 20 AND first IS EXACTLY 'Johnny') AND age IS LESS THAN 40) OR (age IS LESS THAN 40) ORDER BY "last" ASC, "age" DESC LIMIT 15 OFFSET 45
         """)
     }
 	
 	func testDecodingEncoding() {
-		let filter = Filter<Name>(\.last, is: .notEqual(to: "Arrington"))
+		let filter = Filter<Name>(\.last, is: .notEqual(to: "Appleseed"))
 			.or(Filter(\.age, is: .greater(than: 20))
-				.and(\.first, is: .exactly("Michael")))
+				.and(\.first, is: .exactly("Johnny")))
 			.and(\.age, is: .less(than: 40))
 			.or(Filter(\.age, is: .less(than: 40)))
 		

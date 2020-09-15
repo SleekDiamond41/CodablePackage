@@ -12,7 +12,7 @@ import Foundation
 //MARK: - Get Table
 extension Database {
 
-	func table(_ name: String) throws -> Table? {
+	func table(_ name: String) throws -> Table {
 		var s = Statement("PRAGMA TABLE_INFO(\(Table.name(name)))")
 
         try s.prepare(in: connection.db)
@@ -43,12 +43,12 @@ extension Database {
             )
             status = s.step()
         }
-
-        if columns.count > 0 {
-            return Table(name: name, columns: columns)
-        } else {
-            return nil
-        }
+		
+		guard !columns.isEmpty else {
+			throw PreparationError.noSuchTable(name)
+		}
+		
+		return Table(name: name, columns: columns)
 	}
 }
 
@@ -57,7 +57,12 @@ extension Database {
 extension Database {
 	
 	func create(_ table: Table) {
-        execute(table.query(for: .create))
+		let query = table.query(for: .create)
+        let status = execute(query)
+		
+		guard status == .done else {
+			preconditionFailure()
+		}
 	}
 }
 

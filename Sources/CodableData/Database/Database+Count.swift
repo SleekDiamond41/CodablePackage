@@ -12,13 +12,9 @@ import SQLite3
 
 extension Database {
 	
-	public func count<T>(with filter: Filter<T>) throws -> Int where T: Decodable & Model {
+	private func _count<Element>(with filter: Filter<Element>) throws -> Int where Element: Decodable & Model {
 		
 		var s = Statement(.count(filter))
-		
-		guard try table(T.tableName) != nil else {
-			return 0
-		}
 		
         try s.prepare(in: connection.db)
 		
@@ -43,5 +39,17 @@ extension Database {
 		
         // returned table should have exactly one row, one column, value is count of items that matched the query
 		return Int.unbind(proxy)
+	}
+	
+	public func count<T>(with filter: Filter<T>) throws -> Int where T: Decodable & Model {
+		
+		do {
+			// make sure table exists
+			_ = try table(T.tableName)
+			return try _count(with: filter)
+			
+		} catch PreparationError.noSuchTable {
+			return 0
+		}
 	}
 }

@@ -16,9 +16,8 @@ extension Database {
 	/// - Throws: A whole host of stuff. 
 	/// - Returns: <#description#>
 	private func _get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Decodable & Model {
-        guard let table = try self.table(Element.tableName) else {
-			return []
-		}
+        
+		let table = try self.table(Element.tableName)
 		
 		var s = Statement(.get(filter))
 		
@@ -56,9 +55,7 @@ extension Database {
 	private func get<Element>(filter: Filter<Element>) throws -> [Element] where Element: Model & Decodable {
 		let copy = filter
 		
-		guard let t = try table(Element.tableName) else {
-			return []
-		}
+		let t = try table(Element.tableName)
 		
 		for _ in 0..<t.columns.count {
 			//
@@ -82,6 +79,10 @@ extension Database {
 extension Database {
 
     public func get<T>(with filter: Filter<T>) throws -> [T] where T: Decodable & Model {
-        return try get(filter: filter)
+		do {
+			return try get(filter: filter)
+		} catch PreparationError.noSuchTable {
+			return []
+		}
     }
 }

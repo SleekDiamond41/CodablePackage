@@ -10,15 +10,7 @@ import Foundation
 
 extension Database {
 	
-	@inlinable
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
-		return try distinct(path, using: Filter<Element>())
-	}
-	
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
-		guard try table(Element.tableName) != nil else {
-			return []
-		}
+	private func _distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
 		
 		let column = Element.key(for: path).stringValue
 		
@@ -40,5 +32,20 @@ extension Database {
 		}
 		
 		return results
+	}
+	
+	@inlinable
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+		return try distinct(path, using: Filter<Element>())
+	}
+	
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+		do {
+			// make sure the table exists
+			_ = try table(Element.tableName)
+			return try _distinct(path, using: filter)
+		} catch PreparationError.noSuchTable {
+			return []
+		}
 	}
 }

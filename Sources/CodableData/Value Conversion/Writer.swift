@@ -27,9 +27,9 @@ extension Table.Column {
 	}
 }
 
-class Writer<T: Model & Encodable> {
+class Writer {
 	
-	static func values(for value: T) throws -> [(key: String, value: Bindable)] {
+	static func values<T>(for value: T) throws -> [(key: String, value: SQLValue)] where T: Model & Encodable {
 		let writer = _Writer()
 		try value.encode(to: writer)
 		return writer.values
@@ -38,27 +38,32 @@ class Writer<T: Model & Encodable> {
 	private let writer = _Writer()
 	
 	
-	func prepare(_ value: T) throws {
+	func prepare<T>(_ value: T) throws where T: Model & Encodable {
 		try value.encode(to: writer)
 	}
 	
 	func tableDefinition() -> Table {
-		let name = T.tableName
+		let name = "FIX tableDefinition YA DUMMY" //T.tableName
 		let columns = writer.values
-			.map { Table.Column(name: $0.0, type: $0.1.bindingValue) }
+			.map { Table.Column(name: $0.0, type: $0.1) }
 		
 		return Table(name: name, columns: columns)
 	}
 	
-	func replace(_ value: T, into table: inout Table, connection: Connection, newColumnsHandler: ([Table.Column]) throws -> Void) rethrows {
+	func replace(_ values: [(String, SQLValue)], into table: inout Table, connection: Connection, newColumnsHandler: (inout Table, [Table.Column]) throws -> Void) throws {
 		
-		try newColumnsHandler(writer.values.filter { (val) in
-				return !table.columns.contains(where: { $0.name == val.0 })
-			}.map {
-				Table.Column(name: $0.0, type: $0.1.bindingValue)
-			})
+		let existingColumns = Set(table.columns.map { $0.name })
 		
-		var s = Statement(.save(T.self, writer.values))
+		let newColumns = values.filter { column in
+			!existingColumns.contains(column.0)
+		}
+		.map {
+			Table.Column(name: $0.0, type: $0.1)
+		}
+		
+		try newColumnsHandler(&table, newColumns)
+		
+		var s = Statement(.save(table.name, values))
 
         //TODO: refactor so this can actually throw if needed
         try! s.prepare(in: connection.db)
@@ -68,19 +73,25 @@ class Writer<T: Model & Encodable> {
 		}
 		
 		var i: Int32 = 1
-		for (_ , value) in writer.values {
+		for (_ , value) in values {
             do {
-				try s.bind(value.bindingValue, at: i)
+				try s.bind(value, at: i)
             } catch {
                 preconditionFailure(String(reflecting: error))
             }
 			i += 1
 		}
 		
-		s.step()
+		let status = s.step()
+		
+		guard status == .done else {
+			let error = ConnectionError.statusCode(expected: .done, actual: status)
+			assertionFailure("expected status to be '\(Status.done)' but it was '\(status)'")
+			throw error
+		}
 	}
-	
 }
+
 
 fileprivate protocol _WriterContainer {
 	var values: [(String, Bindable)] { get }
@@ -95,7 +106,7 @@ fileprivate class _Writer: Encoder {
 		return [:]
 	}
 	
-	var values = [(String, Bindable)]()
+	var values = [(String, SQLValue)]()
 	var currentKey: String?
 	
 	
@@ -117,7 +128,7 @@ fileprivate class _Writer: Encoder {
 			return []
 		}
 		
-		let encoder: _Writer
+		unowned let encoder: _Writer
 		
 		init(_ encoder: _Writer) {
 			self.encoder = encoder
@@ -164,7 +175,7 @@ fileprivate class _Writer: Encoder {
 //			let i = index(for: key)
 			
 			if let bindable = value as? Bindable {
-				encoder.values.append((key.stringValue, bindable))
+				encoder.values.append((key.stringValue, bindable.bindingValue))
 			} else {
 				// value is likely an enum, encode its RawValue
 				assert(encoder.currentKey == nil)
@@ -214,13 +225,12 @@ fileprivate class _Writer: Encoder {
 			}
 			
 			if let bind = value as? Bindable {
-				encoder.values.append((key, bind))
+				encoder.values.append((key, bind.bindingValue))
 			} else {
 				let e = JSONEncoder()
 				let data = try e.encode(value)
-				encoder.values.append((key, data))
+				encoder.values.append((key, data.bindingValue))
 			}
 		}
 	}
-	
 }

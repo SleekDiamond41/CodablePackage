@@ -40,23 +40,23 @@ final class CodableDataTests: XCTestCase {
         XCTAssertEqual(filter.bindings.count, 1)
 
         filter = Filter<Name>()
-        filter = filter.and(\.first, is: .exactly("Michael"))
+        filter = filter.and(\.first, is: .exactly("Johnny"))
 			.limit(10)
         XCTAssertEqual(filter.query, """
 		WHERE "first" LIKE ? LIMIT ?
 		""")
 		XCTAssertEqual(filter.bindings, [
-			.string("Michael"),
+			.string("Johnny"),
 			.integer(Int64(UInt32(10)))
 		])
 
-        filter = filter.and(\.last, is: .exactly("Arrington")).limit(50, page: 3)
+        filter = filter.and(\.last, is: .exactly("Appleseed")).limit(50, page: 3)
         XCTAssertEqual(filter.query, """
 		WHERE "first" LIKE ? AND "last" LIKE ? LIMIT ? OFFSET ?
 		""")
         XCTAssertEqual(filter.bindings, [
-			.string("Michael"),
-			.string("Arrington"),
+			.string("Johnny"),
+			.string("Appleseed"),
 			.integer(Int64(UInt32(50))),
 			.integer(Int64(UInt32(3))),
 		])
@@ -65,7 +65,7 @@ final class CodableDataTests: XCTestCase {
         filter = filter.or(otherFilter)
         // FIXME: look into logical ways to make complex AND/ORs split up in an appropriate way
         XCTAssertEqual(filter.description, """
-		Filter<Name>: WHERE (first IS EXACTLY 'Michael' AND last IS EXACTLY 'Arrington') OR (age IS BETWEEN 18 AND 30)
+		Filter<Name>: WHERE (first IS EXACTLY 'Johnny' AND last IS EXACTLY 'Appleseed') OR (age IS BETWEEN 18 AND 30)
 		""")
     }
 	
@@ -83,7 +83,7 @@ final class CodableDataTests: XCTestCase {
 	func testCount() {
 		XCTAssertEqual(try db.count(with: Filter<Name>()), 0)
 		
-		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
+		let model = Name(id: UUID(), first: "Johnny", last: "Appleseed")
 
 		try! db.save(model)
 		
@@ -93,8 +93,8 @@ final class CodableDataTests: XCTestCase {
 	func testDistinct() {
 		XCTAssertEqual(try db.distinct(\Name.age), [])
 		
-		let one = Name(id: UUID(), first: "Michael", last: "Arrington", age: 47)
-		let two = Name(id: UUID(), first: "Michael", last: "Arrington", age: 25)
+		let one = Name(id: UUID(), first: "Johnny", last: "Appleseed", age: 47)
+		let two = Name(id: UUID(), first: "Johnny", last: "Appleseed", age: 25)
 		let filter = Filter<Name>()
 		
 		try! db.save(one)
@@ -103,7 +103,7 @@ final class CodableDataTests: XCTestCase {
 		XCTAssertEqual(try db.distinct(\Name.age), [47, 25])
 		XCTAssertEqual(try db.distinct(\.age, using: filter.sort(by: \.age, .ascending)), [25, 47])
 		
-		let three = Name(id: UUID(), first: "Michael", last: "Arrington", age: 32)
+		let three = Name(id: UUID(), first: "Johnny", last: "Appleseed", age: 32)
 		
 		try! db.save(three)
 		
@@ -113,18 +113,20 @@ final class CodableDataTests: XCTestCase {
 	func testDistinctCount() {
 		XCTAssertEqual(try db.distinctCount(\Name.age), 0)
 		
-		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
+		// TODO: add more thorough testing
+		
+		let model = Name(id: UUID(), first: "Johnny", last: "Appleseed")
 
 		try! db.save(model)
 		
 		XCTAssertEqual(try db.distinctCount(\Name.age), 1)
 	}
 
-    func testDatabase() {
+    func testBasicInterations() {
 		
 		XCTAssertEqual(try db.count(with: Filter<Name>()), 0)
 
-		let model = Name(id: UUID(), first: "Michael", last: "Arrington")
+		let model = Name(id: UUID(), first: "Johnny", last: "Appleseed")
 
 		XCTAssertNoThrow(try db.save(model))
 
@@ -135,7 +137,7 @@ final class CodableDataTests: XCTestCase {
 	
 	func test_getModels() {
 		let models = [
-			Name(id: UUID(), first: "Michael", last: "Arrington", age: 10),
+			Name(id: UUID(), first: "Jimmy", last: "Orangeseed", age: 10),
 			Name(id: UUID(), first: "Johnny", last: "Appleseed", age: 20),
 		]
 		
@@ -150,11 +152,11 @@ final class CodableDataTests: XCTestCase {
 		XCTAssertEqual(try! db.count(with: filter), 2)
 		XCTAssertEqual(try! db.get(with: filter), models)
 		
-		filter = filter.and(\.first, is: .in(["Michael", "Johnny"]))
+		filter = filter.and(\.first, is: .in(["Jimmy", "Johnny"]))
 		XCTAssertEqual(try! db.count(with: filter), 2)
 		XCTAssertEqual(try! db.get(with: filter), models)
 		
-		filter = Filter(\.first, is: .in(["Michael", "Johnny"]))
+		filter = Filter(\.first, is: .in(["Jimmy", "Johnny"]))
 		XCTAssertEqual(try! db.count(with: filter), 2)
 		XCTAssertEqual(try! db.get(with: filter), models)
 		
@@ -168,7 +170,7 @@ final class CodableDataTests: XCTestCase {
 		
 		filter = Filter(\.age, is: .notIn([10]))
 		XCTAssertEqual(try! db.count(with: filter), 1)
-		XCTAssertEqual(try! db.get(with: filter)[0], models[1])
+		XCTAssertEqual(try! db.get(with: filter).first, models[1])
 	}
 	
 	func test_savingUnicodeCharacters() {
@@ -258,7 +260,10 @@ final class CodableDataTests: XCTestCase {
 		let filter = Filter<Temp>(\.id, is: .equal(to: model.id))
 			.limit(1)
 		
-		let result = try! db.get(with: filter).first!
+		guard let result = try! db.get(with: filter).first else {
+			XCTFail("expected to find at least one result")
+			return
+		}
 		
 		XCTAssertEqual(result.id, model.id)
 		XCTAssertEqual(result.name, model.name)
@@ -276,7 +281,7 @@ final class CodableDataTests: XCTestCase {
 			// make sure item was saved
 			XCTAssertEqual(try db.get(with: filter).count, 1)
 			
-			try! db.delete(with: filter)
+			XCTAssertNoThrow(try db.delete(with: filter))
 			XCTAssertEqual(try db.get(with: filter).count, 0)
 			
 		} catch {
@@ -290,7 +295,7 @@ final class CodableDataTests: XCTestCase {
 			// make sure item was saved
 			XCTAssertEqual(try db.get(with: filter).count, 1)
 			
-			try! db.delete(with: filter)
+			XCTAssertNoThrow(try db.delete(with: filter))
 			XCTAssertEqual(try db.get(with: filter).count, 0)
 			
 		} catch {

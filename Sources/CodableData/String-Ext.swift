@@ -10,11 +10,17 @@ import Foundation
 extension String {
 	
 	static func get<T>(_ filter: Filter<T>) -> String where T: Model & Filterable {
+		let query = filter.query
+		var text = "SELECT * FROM \(Table.name(T.tableName))"
 		
-		return "SELECT * FROM \(Table.name(T.tableName)) \(filter.query);"
+		if !query.isEmpty {
+			text += " " + query
+		}
+		
+		return text + ";"
 	}
 	
-	static func save<T>(_ : T.Type, _ pairs: [(key: String, value: Bindable)]) -> String where T: Model {
+	static func save(_ tableName: String, _ pairs: [(key: String, value: SQLValue)]) -> String {
 		
 		let keys = pairs
 			.map { $0.key.sqlFormatted() }
@@ -23,17 +29,34 @@ extension String {
 		let values = [String](repeating: "?", count: pairs.count)
 			.joined(separator: ", ")
 		
-		return "REPLACE INTO \(Table.name(T.tableName)) (\(keys)) VALUES (\(values));"
+		return "REPLACE INTO \(Table.name(tableName)) (\(keys)) VALUES (\(values));"
+	}
+	
+	static func delete(table: String, _ filterQuery: String) -> String {
+		var text = "DELETE FROM \(Table.name(table))"
+		
+		if !filterQuery.isEmpty {
+			text += " " + filterQuery
+		}
+		
+		return text + ";"
 	}
 	
 	static func delete<T>(_ filter: Filter<T>) -> String where T: Model & Filterable {
 		
-		return "DELETE FROM \(Table.name(T.tableName)) \(filter.query);"
+		delete(table: T.tableName, filter.query)
 	}
 	
 	static func count<T>(_ filter: Filter<T>) -> String where T: Model & Filterable {
 		
-		return "SELECT COUNT(*) FROM \(Table.name(T.tableName)) \(filter.query);"
+		let clause = filter.query
+		var text = "SELECT COUNT(*) FROM \(Table.name(T.tableName))"
+		
+		if !clause.isEmpty {
+			text += " " + clause
+		}
+		
+		return text + ";"
 	}
 	
 	static func distinct<T>(_ filter: Filter<T>, column: String) -> String where T: Model {
