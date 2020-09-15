@@ -32,6 +32,20 @@ extension String {
 		return "REPLACE INTO \(Table.name(tableName)) (\(keys)) VALUES (\(values));"
 	}
 	
+	static func update(table: String, query: String, keys: [String]) -> String {
+		let valuesText = keys
+			.map { "\($0) = ?" }
+			.joined(separator: ", ")
+		
+		var text = "UPDATE \(Table.name(table)) SET \(valuesText)"
+		
+		if !query.isEmpty {
+			text += " " + query
+		}
+		
+		return text + ";"
+	}
+	
 	static func delete(table: String, _ filterQuery: String) -> String {
 		var text = "DELETE FROM \(Table.name(table))"
 		

@@ -85,9 +85,61 @@ class Writer {
 		let status = s.step()
 		
 		guard status == .done else {
-			let error = ConnectionError.statusCode(expected: .done, actual: status)
 			assertionFailure("expected status to be '\(Status.done)' but it was '\(status)'")
-			throw error
+			throw ConnectionError.statusCode(expected: .done, actual: status)
+		}
+	}
+	
+	func update(table: inout Table, updates: [String: SQLValue], filter: Transaction.AnyFilter, connection: Connection, newColumnsHandler: (inout Table, [Table.Column]) throws -> Void) throws {
+		let existingColumns = Set(table.columns.map { $0.name })
+		
+		let columnNames = Array(updates.keys)
+		
+		let newColumns = columnNames.filter {
+			!existingColumns.contains($0)
+		}
+		.map {
+			// should be safe to unwrap, since we're iterating
+			// over the actual keys of the Dictionary
+			Table.Column(name: $0, type: updates[$0]!)
+		}
+		
+		try newColumnsHandler(&table, newColumns)
+		
+		var s = Statement(.update(table: table.name, query: filter.query, keys: columnNames))
+		
+		try s.prepare(in: connection.db)
+		
+		defer {
+			s.finalize()
+		}
+		
+		var i: Int32 = 1
+		for name in columnNames {
+			do {
+				// we're using the actual Dictionary keys,
+				// it should be safe to force unwrap
+				try s.bind(updates[name]!, at: i)
+			} catch {
+				preconditionFailure(error.localizedDescription)
+			}
+			i += 1
+		}
+		
+		for binding in filter.bindings {
+			do {
+				try s.bind(binding, at: i)
+			} catch {
+				preconditionFailure(error.localizedDescription)
+			}
+			i += 1
+		}
+		
+		let status = s.step()
+		
+		guard status == .done else {
+			assertionFailure("expected status to be '\(Status.done)' but it was '\(status)'")
+			throw ConnectionError.statusCode(expected: .done, actual: status)
 		}
 	}
 }
