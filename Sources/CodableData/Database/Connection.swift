@@ -87,11 +87,11 @@ class Connection {
 		
 		print("\(id.uuidString) - Connecting to sqlite3 file at '\(config.directory.absoluteString)'")
 		
-		var flags = SQLITE_OPEN_SHAREDCACHE | SQLITE_OPEN_CREATE
+		var flags = SQLITE_OPEN_SHAREDCACHE
 		if config.isReadOnly {
 			flags |= SQLITE_OPEN_READONLY
 		} else {
-			flags |= SQLITE_OPEN_READWRITE
+			flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
 		}
 
         var db: OpaquePointer!
