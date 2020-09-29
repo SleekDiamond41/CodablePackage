@@ -13,13 +13,13 @@ public typealias Filterable = SwiftFilter.Filterable
 public typealias SortRule = SwiftFilter.SortRule
 public typealias Limit = SwiftFilter.Limit
 public typealias Where = SwiftFilter.Where
-public typealias SQLValue = SwiftFilter.SQLValue
+public typealias SQLValue = SwiftFilter.Primitive
 
 
 public typealias Bindable = SwiftFilter.Bindable & Unbindable
 
 
-extension SQLValue: CustomStringConvertible {
+extension Primitive: CustomStringConvertible {
 	
 	public var description: String {
 		switch self {

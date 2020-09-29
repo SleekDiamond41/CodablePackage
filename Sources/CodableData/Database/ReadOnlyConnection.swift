@@ -30,23 +30,23 @@ public final class ReadOnlyConnection {
 	}
 	
 	@inlinable
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable {
 		
 		return try distinct(path, using: Filter<Element>())
 	}
 	
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable {
 		
 		return try db.distinct(path, using: filter)
 	}
 	
 	@inlinable
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int where Element: Model & Filterable, T: Bindable {
 		
 		return try distinctCount(path, using: Filter<Element>())
 	}
 	
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable {
 		
 		return try db.distinctCount(path, using: filter)
 	}

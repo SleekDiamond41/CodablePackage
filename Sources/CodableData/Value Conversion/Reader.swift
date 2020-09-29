@@ -103,8 +103,8 @@ fileprivate class _Reader: Decoder {
 			decoder.proxy.index = try index(for: key)
 			
 			do {
-				if let U = T.self as? Unbindable.Type {
-					return U.unbind(decoder.proxy) as! T
+				if let U = T.self as? Bindable.Type {
+					return try U.unbind(decoder.proxy) as! T
 				} else {
 					assert(decoder.currentColumn == nil)
 					decoder.currentColumn = decoder.proxy.index
@@ -155,10 +155,10 @@ fileprivate class _Reader: Decoder {
 				fatalError()
 			}
 			
-			if let U = T.self as? Unbindable.Type {
-				return U.unbind(decoder.proxy) as! T
+			if let U = T.self as? Bindable.Type {
+				return try U.unbind(decoder.proxy) as! T
 			} else {
-				let data = Data.unbind(decoder.proxy)
+				let data = try Data.unbind(decoder.proxy)
 				let d = JSONDecoder()
 				return try d.decode(T.self, from: data)
 			}

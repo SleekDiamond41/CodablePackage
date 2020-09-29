@@ -10,7 +10,7 @@ import Foundation
 
 extension Database {
 	
-	private func _distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+	private func _distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable {
 		
 		let column = Element.key(for: path).stringValue
 		
@@ -30,15 +30,15 @@ extension Database {
 		}
 		
 		let proxy = Proxy(s, isNull: { _ in false })
-		return Int.unbind(proxy)
+		return try Int.unbind(proxy)
 	}
 	
 	@inlinable
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>) throws -> Int where Element: Model & Filterable, T: Bindable {
 		return try distinctCount(path, using: Filter<Element>())
 	}
 	
-	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinctCount<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> Int where Element: Model & Filterable, T: Bindable {
 		
 		do {
 			// make sure table exists

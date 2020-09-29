@@ -10,7 +10,7 @@ import Foundation
 
 extension Database {
 	
-	private func _distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	private func _distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable {
 		
 		let column = Element.key(for: path).stringValue
 		
@@ -27,7 +27,7 @@ extension Database {
 		var status = s.step()
 		
 		while status == .row {
-			results.append(T.unbind(proxy))
+			results.append(try T.unbind(proxy))
 			status = s.step()
 		}
 		
@@ -35,11 +35,11 @@ extension Database {
 	}
 	
 	@inlinable
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>) throws -> [T] where Element: Model & Filterable, T: Bindable {
 		return try distinct(path, using: Filter<Element>())
 	}
 	
-	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable & Unbindable {
+	public func distinct<Element, T>(_ path: KeyPath<Element, T>, using filter: Filter<Element>) throws -> [T] where Element: Model & Filterable, T: Bindable {
 		do {
 			// make sure the table exists
 			_ = try table(Element.tableName)

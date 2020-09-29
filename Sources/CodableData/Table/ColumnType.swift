@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftFilter
 import SQLite3
 
 
@@ -38,8 +39,8 @@ extension ColumnType {
 
 extension ColumnType: Unbindable {
 	
-	static func unbind(_ proxy: UnbindingProxy) -> ColumnType {
-		let type = proxy.get() as String
+	static func unbind(_ proxy: UnbindingProxy) throws -> ColumnType {
+		let type = try proxy.get() as String
 
 		if type.contains("TEXT") {
 			return .text

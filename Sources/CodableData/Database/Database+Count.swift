@@ -37,7 +37,7 @@ extension Database {
 		let proxy = Proxy(s, isNull: { _ in false })
 		
         // returned table should have exactly one row, one column, value is count of items that matched the query
-		return Int.unbind(proxy)
+		return try Int.unbind(proxy)
 	}
 	
 	public func count<T>(with filter: Filter<T>) throws -> Int where T: Decodable & Model {

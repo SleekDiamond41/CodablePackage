@@ -104,7 +104,7 @@ class ReaderTests: XCTestCase {
 		
 		let proxy = Proxy(statement, isNull: { _ in false })
 		
-		XCTAssertEqual(proxy.get(), "wal")
+		XCTAssertEqual(try proxy.get(), "wal")
 	}
 	
 	func testMultithreadMode() throws {
@@ -115,7 +115,7 @@ class ReaderTests: XCTestCase {
 		
 		var mode: Int32?
 		while status == .row {
-			let text = proxy.get() as String
+			let text = try proxy.get() as String
 			
 			if let range = text.range(of: "THREADSAFE=") {
 				mode = Int32(text[range.upperBound...])
@@ -140,7 +140,7 @@ class ReaderTests: XCTestCase {
 		
 		let proxy = Proxy(statement, isNull: { _ in false })
 		
-		XCTAssertEqual(proxy.get() as Int64, 1)
+		XCTAssertEqual(try proxy.get() as Int64, 1)
 	}
 	
 	func test_readTypeThatDoesntExist() {

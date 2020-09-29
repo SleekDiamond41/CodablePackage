@@ -20,22 +20,22 @@ struct Proxy: UnbindingProxy {
 		self._isNull = isNull
 	}
 	
-	func get() -> Int64 {
+	func get() throws -> Int64 {
 		return sqlite3_column_int64(statement.p, index)
 	}
 	
-	func get() -> Double {
+	func get() throws -> Double {
 		return sqlite3_column_double(statement.p, index)
 	}
 	
-	func get() -> String {
+	func get() throws -> String {
 		guard let p = sqlite3_column_text(statement.p, index) else {
 			fatalError()
 		}
 		return String(cString: p)
 	}
 	
-	func get() -> Data {
+	func get() throws -> Data {
 		let length = sqlite3_column_bytes(statement.p, index)
 		
 		guard length > 0 else {

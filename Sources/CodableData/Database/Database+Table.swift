@@ -27,13 +27,13 @@ extension Database {
         while status == .row {
 			
 			proxy.index = 1
-			let name: String = proxy.get()
+			let name: String = try proxy.get()
 			
 			proxy.index = 2
-			let type = ColumnType.unbind(proxy)
+			let type = try ColumnType.unbind(proxy)
 			
 			proxy.index = 5
-			let isPrimaryKey = Bool.unbind(proxy)
+			let isPrimaryKey = try Bool.unbind(proxy)
 
             columns.append(
                 Table.Column(

@@ -107,13 +107,13 @@ extension Statement {
 		}
 	}
 	
-	func unbind<T: Unbindable>(_ : T.Type, for key: String, in table: Table) throws -> T {
+	func unbind<T: Bindable>(_ : T.Type, for key: String, in table: Table) throws -> T {
 		guard let index = table.columns.firstIndex(where: { $0.name == key }) else {
 			fatalError()
 		}
 		var proxy = Proxy(self, isNull: { _ in false })
 		proxy.index = Int32(index)
 		
-		return T.unbind(proxy)
+		return try T.unbind(proxy)
 	}
 }
