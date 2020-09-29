@@ -23,7 +23,8 @@ class Connection {
     // MARK: Private Properties
 
 //	private let log: Logger
-    private let config: Configuration
+	let id = UUID()
+    let config: Configuration
     private let fileManager = FileManager()
 
 
@@ -83,22 +84,52 @@ class Connection {
     }
 
     private func _connect() throws {
+		
+		print("\(id.uuidString) - Connecting to sqlite3 file at '\(config.directory.absoluteString)'")
+		
+		var flags = SQLITE_OPEN_SHAREDCACHE | SQLITE_OPEN_CREATE
+		if config.isReadOnly {
+			flags |= SQLITE_OPEN_READONLY
+		} else {
+			flags |= SQLITE_OPEN_READWRITE
+		}
 
         var db: OpaquePointer!
-        let status = Status(sqlite3_open(config.url.path, &db))
+        let status = Status(sqlite3_open_v2(config.url.path, &db, flags, nil))
 
         guard db != nil else {
             throw ConnectionError.connectionUnexpectedlyNil
         }
 
         guard status == .ok else {
+			debugPrint(String(cString: sqlite3_errmsg(db)))
             throw ConnectionError.statusCode(expected: .ok, actual: status)
         }
+		
+		// setup connection
+		var journalModeError: UnsafeMutablePointer<Int8>?
+		let journalStatus = Status(sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nil, nil, &journalModeError))
 
+		guard journalStatus == .ok else {
+			debugPrint(String(cString: sqlite3_errmsg(db)))
+			throw ConnectionError.statusCode(expected: .ok, actual: journalStatus)
+		}
+		assert(journalModeError == nil)
+		
+		var readUncommittedError: UnsafeMutablePointer<Int8>?
+		let readUncommittedStatus = Status(sqlite3_exec(db, "PRAGMA read_uncommitted=1;", nil, nil, &readUncommittedError))
+		
+		guard readUncommittedStatus == .ok else {
+			debugPrint(String(cString: sqlite3_errmsg(db)))
+			throw ConnectionError.statusCode(expected: .ok, actual: readUncommittedStatus)
+		}
+		assert(readUncommittedError == nil)
+		
         self.db = db
     }
 
     private func disconnect() throws {
+		print("\(id.uuidString) - Disconnecting from sqlite3 file at '\(config.directory.absoluteString)'")
 //		log.critical(<#T##message: Logger.Message##Logger.Message#>, metadata: <#T##Logger.Metadata?#>, source: <#T##String?#>)
 
         guard db != nil else {

@@ -19,7 +19,13 @@ public class Database {
 
 	let connection: Connection
 	
-	public let dir: URL
+	public var dir: URL {
+		connection.config.directory
+	}
+	
+	public var filename: String {
+		connection.config.filename
+	}
 
 
     /// /// Opens a connection to  a new database at the given directory, with the given filename.
@@ -30,18 +36,20 @@ public class Database {
     ///   - dir: the full URL to a directory. Default is /ApplicationSupport/CodableData/
     ///   - filename: the name of the database file. Default is "Data"
     /// - Throws: Potentially any ConnectionError
-    public init(
+    public convenience init(
         dir: URL = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask).first!.appendingPathComponent("CodableData"),
         filename: String = "Data") throws {
 
-        let config = Configuration(directory: dir, filename: filename)
-		debugPrint(dir.absoluteString)
-		self.dir = config.directory
-        self.connection = Connection(config)
+        let config = Configuration(directory: dir, filename: filename, isReadOnly: false)
 		
-        try self.connection.connect()
+		try self.init(connection: Connection(config))
+	}
+	
+	internal init(connection: Connection) throws {
+		self.connection = connection
+		try self.connection.connect()
 	}
 
     @discardableResult
@@ -63,6 +71,18 @@ public class Database {
         try connection.deleteEverything()
         try connection.connect()
     }
+	
+	/// Multi-threading with SQLite can be tricky. Save yourself a headache and get
+	/// a unique connection for reading asynchronously from the database
+	public func getReadOnly() throws -> ReadOnlyConnection {
+		let config = Configuration(
+			directory: connection.config.directory,
+			filename: connection.config.filename,
+			isReadOnly: true)
+		
+		let db = try Database(connection: Connection(config))
+		return ReadOnlyConnection(db: db)
+	}
 	
 	func deleteWithoutReconnecting() throws {
 		try connection.deleteEverything()

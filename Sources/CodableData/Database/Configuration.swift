@@ -13,6 +13,7 @@ struct Configuration {
 
     let directory: URL
     let filename: String
+	let isReadOnly: Bool
 
     var url: URL {
         return directory

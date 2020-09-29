@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import SQLite3
 @testable import CodableData
 
 
@@ -81,10 +82,10 @@ class ReaderTests: XCTestCase {
 	
 	var db: Database!
 	
-	override func setUp() {
-		super.setUp()
+	override func setUpWithError() throws {
+		try super.setUpWithError()
 		
-		db = try! Database(filename: "ReaderTests")
+		db = try Database(filename: "ReaderTests")
 	}
 	
 	override func tearDown() {
@@ -92,6 +93,54 @@ class ReaderTests: XCTestCase {
 		db = nil
 		
 		super.tearDown()
+	}
+	
+	func testJournalMode() throws {
+		var statement = Statement("PRAGMA journal_mode;")
+		try statement.prepare(in: db.connection.db)
+		let status = statement.step()
+		
+		XCTAssertEqual(status, .row)
+		
+		let proxy = Proxy(statement, isNull: { _ in false })
+		
+		XCTAssertEqual(proxy.get(), "wal")
+	}
+	
+	func testMultithreadMode() throws {
+		var statement = Statement("pragma COMPILE_OPTIONS;")
+		try statement.prepare(in: db.connection.db)
+		var status = statement.step()
+		let proxy = Proxy(statement, isNull: { _ in false })
+		
+		var mode: Int32?
+		while status == .row {
+			let text = proxy.get() as String
+			
+			if let range = text.range(of: "THREADSAFE=") {
+				mode = Int32(text[range.upperBound...])
+				break
+			}
+			
+			status = statement.step()
+		}
+		
+		XCTAssertEqual(mode, SQLITE_CONFIG_MULTITHREAD)
+	}
+	
+	func testReadUncommitted() throws {
+		var statement = Statement("pragma read_uncommitted;")
+		try statement.prepare(in: db.connection.db)
+		let status = statement.step()
+		
+		guard status == .row else {
+			XCTFail("\(status)")
+			return
+		}
+		
+		let proxy = Proxy(statement, isNull: { _ in false })
+		
+		XCTAssertEqual(proxy.get() as Int64, 1)
 	}
 	
 	func test_readTypeThatDoesntExist() {
