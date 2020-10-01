@@ -40,7 +40,7 @@ extension Model {
 		
 		guard s.range(of: pattern, options: .regularExpression) == nil else {
 			let message = """
-			the default implementation of `tableName` uses `String(reflecting: Self.self)`. The result includes an inconsistent section of text identified by the regex pattern "\(pattern)"; therefore, the default behavior cannot be relied upon for data-table naming.
+			the default implementation of `tableName` uses `String(reflecting: Self.self)`. For types that are private, fileprivate, or defined within a function, the result includes an inconsistent section of text identified by the regex pattern "\(pattern)"; therefore, the default behavior cannot be relied upon for data-table naming.
 
 			To resolve this issue, update your object to implement a custom `tableName` property.
 			"""

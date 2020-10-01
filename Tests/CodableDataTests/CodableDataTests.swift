@@ -218,6 +218,8 @@ final class CodableDataTests: XCTestCase {
 			let name: String
 			let key: Key
 			
+			static let tableName = "Temp"
+			
 			static let idKey = \Temp.id
 			
 			enum Key: String, Codable {
