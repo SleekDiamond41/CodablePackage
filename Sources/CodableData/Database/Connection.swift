@@ -85,7 +85,7 @@ class Connection {
 
     private func _connect() throws {
 		
-		print("\(id.uuidString) - Connecting to sqlite3 file at '\(config.directory.absoluteString)'")
+		print("\(id.uuidString) - Connecting to database at '\(config.url.absoluteString)'")
 		
 		var flags = SQLITE_OPEN_SHAREDCACHE
 		if config.isReadOnly {
@@ -129,12 +129,13 @@ class Connection {
     }
 
     private func disconnect() throws {
-		print("\(id.uuidString) - Disconnecting from sqlite3 file at '\(config.directory.absoluteString)'")
 //		log.critical(<#T##message: Logger.Message##Logger.Message#>, metadata: <#T##Logger.Metadata?#>, source: <#T##String?#>)
 
         guard db != nil else {
             return
         }
+		
+		print("\(id.uuidString) - Disconnecting from database at '\(config.url.absoluteString)'")
 
         defer {
             db = nil
