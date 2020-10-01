@@ -25,17 +25,28 @@ public protocol Model {
 	///       struct Bar {}
 	///     }
 	///
-	///     String(reflecting: Foo.Bar.self) == "Foo.Bar.Type"
+	///     String(reflecting: Foo.Bar.self) == "Foo.Bar"
 	///     String(describing: Foo.Bar.self) == "Bar"
 	///     "\(Foo.Bar.self)"                == "Bar"
 	///
-	/// CodableData's default behavior is to use the former and remove ".type" from the end.
+	/// CodableData's default behavior is to use the first version.
 	static var tableName: String { get }
 }
 
 extension Model {
 	public static var tableName: String {
-		return String(reflecting: Self.self).replacingOccurrences(of: ".type", with: "")
+		let s = String(reflecting: Self.self)
+		let pattern = #"unknown context at \$([0-9]|[a-f])*"#
+		
+		guard s.range(of: pattern, options: .regularExpression) == nil else {
+			let message = """
+			the default implementation of `tableName` uses `String(reflecting: Self.self)`. The result includes an inconsistent section of text identified by the regex pattern "\(pattern)"; therefore, the default behavior cannot be relied upon for data-table naming.
+
+			To resolve this issue, update your object to implement a custom `tableName` property.
+			"""
+			preconditionFailure(message)
+		}
+		return s
 	}
 }
 
