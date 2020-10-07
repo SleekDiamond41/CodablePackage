@@ -68,7 +68,7 @@ class TransactionTests: XCTestCase {
 	}
 	
 	override func tearDown() {
-		try? db?.deleteWithoutReconnecting()
+		try? db?.deleteTheWholeDangDatabase()
 		db = nil
 		
 		super.tearDown()

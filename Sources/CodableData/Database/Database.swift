@@ -69,7 +69,6 @@ public class Database {
 
     public func deleteTheWholeDangDatabase() throws {
         try connection.deleteEverything()
-        try connection.connect()
     }
 	
 	/// Multi-threading with SQLite can be tricky. Save yourself a headache and get
@@ -82,9 +81,5 @@ public class Database {
 		
 		let db = try Database(connection: Connection(config))
 		return ReadOnlyConnection(db: db)
-	}
-	
-	func deleteWithoutReconnecting() throws {
-		try connection.deleteEverything()
 	}
 }

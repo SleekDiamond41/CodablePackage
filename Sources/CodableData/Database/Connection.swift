@@ -26,11 +26,23 @@ class Connection {
 	let id = UUID()
     let config: Configuration
     private let fileManager = FileManager()
+	
+	private(set) var isConnected = false
 
 
     // MARK: Public Properties
 
-    private(set) var db: OpaquePointer!
+	private var _db: OpaquePointer?
+	var db: OpaquePointer! {
+		if !isConnected {
+			do {
+				try connect()
+			} catch {
+				preconditionFailure()
+			}
+		}
+		return _db
+	}
 
 
     // MARK: Initializers
@@ -54,7 +66,7 @@ class Connection {
     // MARK: Internal Methods
 
     func connect() throws {
-        assert(db == nil)
+        assert(_db == nil)
 
         if !directoryExists() {
             try createDirectory()
@@ -64,8 +76,11 @@ class Connection {
     }
 
     func deleteEverything() throws {
-
-        try disconnect()
+		print("\nDeleting everyting! \(config.filename)\n")
+		if isConnected {
+			try disconnect()
+		}
+		
         try deleteFile()
     }
 
@@ -125,23 +140,25 @@ class Connection {
 		}
 		assert(readUncommittedError == nil)
 		
-        self.db = db
+        self._db = db
+		self.isConnected = true
     }
 
     private func disconnect() throws {
 //		log.critical(<#T##message: Logger.Message##Logger.Message#>, metadata: <#T##Logger.Metadata?#>, source: <#T##String?#>)
 
-        guard db != nil else {
+        guard _db != nil else {
             return
         }
 		
 		print("\(id.uuidString) - Disconnecting from database at '\(config.url.absoluteString)'")
 
         defer {
-            db = nil
+            _db = nil
+			isConnected = false
         }
 
-        let status = Status(sqlite3_close(db))
+        let status = Status(sqlite3_close(_db))
 
         guard status == .ok else {
             throw ConnectionError.disconnectFailure

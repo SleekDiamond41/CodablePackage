@@ -21,7 +21,7 @@ class UpdateBlockTests: XCTestCase {
 	}
 	
 	override func tearDownWithError() throws {
-		try db?.deleteWithoutReconnecting()
+		try db?.deleteTheWholeDangDatabase()
 		db = nil
 		
 		super.tearDown()

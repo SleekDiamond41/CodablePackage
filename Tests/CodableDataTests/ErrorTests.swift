@@ -18,7 +18,7 @@ class ErrorTests: XCTestCase {
 	}
 	
 	override func tearDownWithError() throws {
-		try db?.deleteWithoutReconnecting()
+		try db?.deleteTheWholeDangDatabase()
 		db = nil
 	}
 	
@@ -27,7 +27,7 @@ class ErrorTests: XCTestCase {
 		// .sqlite file, like it not existing
 		
 		let otherConnection = try! Database(filename: "ErrorTests")
-		try! db.deleteWithoutReconnecting()
+		try! db.deleteTheWholeDangDatabase()
 		
 		XCTAssertThrowsError(_ = try otherConnection.get(with: Filter<Name>())) { (error) in
 			switch error {

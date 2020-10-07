@@ -13,7 +13,7 @@ final class CodableDataTests: XCTestCase {
     }
 
     override func tearDown() {
-		try? db?.deleteWithoutReconnecting()
+		try? db?.deleteTheWholeDangDatabase()
 		db = nil
 		
 		super.tearDown()
@@ -22,7 +22,7 @@ final class CodableDataTests: XCTestCase {
     func testCreateDatabase() {
 		do {
 			let db = try Database(filename: "TestCreateDatabase")
-			try db.deleteWithoutReconnecting()
+			try db.deleteTheWholeDangDatabase()
 		} catch {
 			XCTFail(String(describing: error))
 		}

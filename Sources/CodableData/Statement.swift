@@ -48,6 +48,7 @@ fileprivate func nativeError(from sqliteError: String, query: String) -> Error {
 extension Statement {
 
 	mutating func prepare(in db: OpaquePointer) throws {
+		print("Preparing:", query)
 		let status = Status(sqlite3_prepare(db, query, -1, &p, nil))
 		guard status == .ok else {
 			print(status)
@@ -67,6 +68,10 @@ extension Statement {
 	
 	@discardableResult
 	func step() -> Status {
+		print("Stepping :", query)
+		defer {
+			print("Stepped  :", query)
+		}
 		assert(p != nil)
 		return Status(sqlite3_step(p))
 	}
