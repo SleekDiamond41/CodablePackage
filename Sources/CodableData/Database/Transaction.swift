@@ -182,7 +182,6 @@ public struct Transaction: Codable, CustomStringConvertible {
 		}
 	}
 	
-	@inlinable
 	public mutating func update<Element>(_ batch: Update<Element>) {
 		update(AnyUpdate(batch))
 	}

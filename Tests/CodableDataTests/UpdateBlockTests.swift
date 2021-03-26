@@ -37,7 +37,7 @@ class UpdateBlockTests: XCTestCase {
 		let update = Update<Name>(UUID())
 			.set(\.first, to: "Jimmy")
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		// make sure we didn't accidentally add a row to the database
 		XCTAssertEqual(try db.count(with: filter), 0)
@@ -56,7 +56,7 @@ class UpdateBlockTests: XCTestCase {
 		let update = Update<Name>(filter)
 			.set(\.first, to: firstName)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let results = try db.get(with: filter)
 		
@@ -70,7 +70,7 @@ class UpdateBlockTests: XCTestCase {
 	func testNoValues() throws {
 		let update = Update<Name>(model.id)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let filter = Filter<Name>()
 		
@@ -89,7 +89,7 @@ class UpdateBlockTests: XCTestCase {
 		let update = Update<Name>(model.id)
 			.set(\.first, to: firstName)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let filter = Filter<Name>()
 		
@@ -110,7 +110,7 @@ class UpdateBlockTests: XCTestCase {
 			.set(\.first, to: firstName)
 			.set(\.last, to: lastName)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let filter = Filter<Name>()
 		
@@ -131,7 +131,7 @@ class UpdateBlockTests: XCTestCase {
 			.set(\.first, to: tempFirstName)
 			.set(\.first, to: firstName)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let filter = Filter<Name>()
 		
@@ -150,7 +150,7 @@ class UpdateBlockTests: XCTestCase {
 		let update = Update<Name>(model.id)
 			.set(\.age, to: age)
 		
-		try db.update(update)
+		try db.update(update.toAnyUpdate())
 		
 		let filter = Filter<Name>()
 		

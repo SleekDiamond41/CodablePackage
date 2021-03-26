@@ -39,11 +39,6 @@ extension Database {
 								}
 		}
 	}
-	
-	@inlinable
-	public func update<Element>(_ batch: Update<Element>) throws where Element: Model & Codable & Filterable {
-		try update(AnyUpdate(batch))
-	}
 }
 
 
@@ -72,7 +67,6 @@ public struct Update<Element> where Element: Model & Codable & Filterable {
 		return copy
 	}
 	
-	@inlinable
 	public func toAnyUpdate() -> AnyUpdate {
 		return AnyUpdate(self)
 	}
@@ -83,11 +77,23 @@ public struct AnyUpdate: Codable {
 	let actions: [String: SQLValue]
 	let filter: Transaction.AnyFilter
 	
-	public init<Element>(_ update: Update<Element>) where Element: Model {
+	init<Element>(_ update: Update<Element>) where Element: Model {
 		self.table = Element.tableName
 		self.actions = update.actions
 		
 		let query = update.filter.updateQuery
 		self.filter = Transaction.AnyFilter(query: query.0, bindings: query.1)
+	}
+	
+	public struct UpdateReader {
+		let update: AnyUpdate
+		
+		public init(_ update: AnyUpdate) {
+			self.update = update
+		}
+		
+		public func getTableName() -> String {
+			return update.table
+		}
 	}
 }
